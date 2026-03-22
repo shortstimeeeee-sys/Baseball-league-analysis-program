@@ -35,11 +35,9 @@
             <span th:if="${item.plateAppearance.batterOrder != null}" th:text="|${item.plateAppearance.batterOrder}번타자|">1번</span>
           </div>
           <div class="pa-result"
-               th:with="resEm=${item.plateAppearance.id != null ? plateAppearanceResultHtml[item.plateAppearance.id] : null}"
-               th:utext="${resEm != null ? resEm : item.plateAppearance.resultTextWithOutEmphasis}">결과</div>
+               th:utext="${item.resultEmphasisHtml != null ? item.resultEmphasisHtml : item.plateAppearance.resultTextWithOutEmphasis}">결과</div>
           <div class="pa-runner-plays text-muted small mt-1" th:if="${item.plateAppearance.runnerPlaysList != null and !item.plateAppearance.runnerPlaysList.isEmpty()}">
-            <div th:with="runEm=${item.plateAppearance.id != null ? plateAppearanceRunnerPlaysHtml[item.plateAppearance.id] : null}"
-                 th:each="play : ${runEm != null ? runEm : item.plateAppearance.runnerPlaysListWithOutEmphasis}"
+            <div th:each="play : ${item.runnerPlaysEmphasisHtml != null ? item.runnerPlaysEmphasisHtml : item.plateAppearance.runnerPlaysListWithOutEmphasis}"
                  th:utext="${play}">2루주자 김현수 : 3루까지 진루</div>
           </div>
         </div>

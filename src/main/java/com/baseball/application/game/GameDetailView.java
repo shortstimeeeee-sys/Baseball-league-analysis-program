@@ -20,7 +20,5 @@ public record GameDetailView(
         List<String> inningsWithError,
         List<GameService.RecordDisplayItem> recordDisplayItems,
         List<GameService.RecordDisplayItem> keyHighlightItems,
-        String scoreboardSituationLabel,
-        Map<Long, String> plateAppearanceResultHtml,
-        Map<Long, List<String>> plateAppearanceRunnerPlaysHtml) {
+        String scoreboardSituationLabel) {
 }

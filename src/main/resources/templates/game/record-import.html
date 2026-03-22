@@ -15,7 +15,7 @@
     <strong>이닝 인식</strong> · 텍스트에 <code>1회초 팀명 공격</code>, <code>1회말 팀명 공격</code>, <code>2회초 팀명 공격</code>… 줄이 나오면, 그 다음 타석들이 해당 이닝으로 저장됩니다.
   </div>
   <div class="alert alert-light border mb-3">
-    <span class="text-muted small">맞는 반 이닝만 잠그려면 <strong>경기 상세 → [중계] 탭</strong>에서 <strong>◇ … 종료 → … 시작</strong> 줄 오른쪽 <strong>확정</strong>을 체크하세요. 체크한 반은 이후 가져오기로 덮어쓰이지 않습니다.</span>
+    <span class="text-muted small">맞는 반 이닝만 잠그려면 아래 <strong>[중계]</strong> 탭에서 <strong>◇ … 종료 → … 시작</strong> 줄 오른쪽 <strong>확정</strong>을 체크하세요. 체크한 반은 이후 가져오기로 덮어쓰이지 않습니다.</span>
   </div>
   <th:block th:if="${error}">
     <div class="alert alert-danger" th:text="${error}"></div>
@@ -58,7 +58,7 @@
             resultEl.style.display = 'block';
             resultEl.className = 'alert mb-3 ' + (o.ok ? 'alert-success' : 'alert-danger');
             if (o.ok) {
-              var msg = '경기 기록이 반영되었습니다. 기록 탭으로 이동합니다…';
+              var msg = '경기 기록이 반영되었습니다. 아래 [중계] 탭에서 확인합니다…';
               if (o.data && o.data.gameCompleted) {
                 msg += ' (텍스트에 경기 종료가 있어 완료 상태로 반영됨)';
               }
@@ -86,9 +86,9 @@
     })();
   </script>
 
-  <!-- 파싱 구역 바로 아래 합쳐서 표시. 가져오기 성공 시 자동 새로고침되어 여기 내용이 갱신됨 -->
-  <h2 class="h5 mt-4 mb-1">스코어보드</h2>
-  <p class="text-muted small mb-2">가져오기 후 아래 스코어가 갱신됩니다. 타석·◇ 교대·확정 체크는 <strong>경기 상세</strong>의 <strong>[중계]</strong> 탭에서만 표시됩니다.</p>
-  <th:block th:replace="~{game/detail :: scoreboard-only}"></th:block>
+  <!-- 스코어보드 + 주요 내용 / 중계 / 기록 탭: 경기 상세와 동일 (가져오기 성공 시 새로고침으로 갱신) -->
+  <h2 class="h5 mt-4 mb-1">스코어 · 주요 내용 · 중계 · 기록</h2>
+  <p class="text-muted small mb-2">가져오기 후 아래가 갱신됩니다. <strong>주요 내용</strong>(하이라이트), <strong>중계</strong>(타석·◇ 교대·확정), <strong>기록</strong>(전력·요약)은 경기 상세와 같습니다.</p>
+  <th:block th:replace="~{game/detail :: scoreboard-and-records}"></th:block>
 </th:block>
 </html>

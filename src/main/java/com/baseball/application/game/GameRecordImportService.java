@@ -495,17 +495,21 @@ public class GameRecordImportService {
     private void savePitcherSubstitutions(Game game, List<GameRecordImportDto.PitcherSubstitutionRow> rows) {
         if (rows == null) return;
         for (GameRecordImportDto.PitcherSubstitutionRow row : rows) {
-            int bf = row.getBattersFaced();
+            int bf = Math.max(0, row.getBattersFaced());
             SubstitutionKind kind = row.getKind() != null ? row.getKind() : SubstitutionKind.PITCHER;
+            int inning = row.getInning();
+            if (inning < 1) {
+                inning = 1;
+            }
             PitcherSubstitution ps = PitcherSubstitution.builder()
                     .game(game)
-                    .inning(row.getInning())
+                    .inning(inning)
                     .isTop(row.isTop())
                     .kind(kind)
                     .positionLabel(row.getPositionLabel())
-                    .displayOrder(row.getDisplayOrder())
-                    .pitcherOutName(row.getPitcherOutName() != null ? row.getPitcherOutName() : "")
-                    .pitcherInName(row.getPitcherInName() != null ? row.getPitcherInName() : "")
+                    .displayOrder(Math.max(0, row.getDisplayOrder()))
+                    .pitcherOutName(row.getPitcherOutName() != null ? row.getPitcherOutName().trim() : "")
+                    .pitcherInName(row.getPitcherInName() != null ? row.getPitcherInName().trim() : "")
                     .battersFaced(bf)
                     .afterPaSequenceOrder(row.getAfterPaSequenceOrder())
                     .build();

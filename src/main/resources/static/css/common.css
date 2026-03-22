@@ -1765,6 +1765,9 @@ textarea.form-control { min-height: 80px; resize: vertical; }
   width: 100%;
   box-sizing: border-box;
 }
+.pa-block.pa-half-handoff.pa-half-handoff-row.pa-half-handoff-row-gamestart {
+  grid-template-columns: minmax(0, 1fr);
+}
 .pa-block.pa-half-handoff .pa-half-handoff-line {
   grid-column: 1;
   font-size: var(--text-sm);
@@ -1774,6 +1777,17 @@ textarea.form-control { min-height: 80px; resize: vertical; }
   line-height: 1.45;
   min-width: 0;
   padding-right: 0.25rem;
+}
+.pa-block.pa-half-handoff .pa-half-handoff-line .pa-half-handoff-line-main {
+  color: inherit;
+}
+.pa-block.pa-half-handoff .pa-half-handoff-line .pa-half-handoff-game-start {
+  color: #1565c0;
+  font-weight: 700;
+}
+.pa-block.pa-half-handoff .pa-half-handoff-line .pa-half-handoff-game-end {
+  color: #c62828;
+  font-weight: 700;
 }
 .pa-block.pa-half-handoff .pa-half-handoff-confirm {
   grid-column: 2;

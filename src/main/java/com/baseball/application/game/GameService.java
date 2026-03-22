@@ -197,10 +197,42 @@ public class GameService {
         List<String> inningsWithError = findInningsWithError(plateAppearances);
         List<PitcherSubstitution> substitutions = pitcherSubstitutionRepository.findByGameIdOrderByInningAscIsTopDescBattersFacedAsc(gameId);
         List<RecordDisplayItem> recordDisplayItems = buildRecordDisplayItems(game, plateAppearances, substitutions);
-        List<RecordDisplayItem> keyHighlightItems = buildKeyHighlightItems(recordDisplayItems);
         PlateAppearance.EmphasisHtml emphasis = PlateAppearance.buildEmphasisHtml(plateAppearances);
-        return new GameDetailView(game, inningScores, byInning, byIndex, plateAppearances, inningsWithError, recordDisplayItems, keyHighlightItems, scoreboardSituationLabel,
-                emphasis.resultById(), emphasis.runnerLinesById());
+        recordDisplayItems = mergeEmphasisIntoRecordDisplayItems(recordDisplayItems, emphasis);
+        List<RecordDisplayItem> keyHighlightItems = buildKeyHighlightItems(recordDisplayItems);
+        return new GameDetailView(game, inningScores, byInning, byIndex, plateAppearances, inningsWithError, recordDisplayItems, keyHighlightItems, scoreboardSituationLabel);
+    }
+
+    /** 아웃 번호 강조 HTML을 타석마다 붙인다. (Thymeleaf Map 조회 키 불일치로 맵 방식이 실패하는 것을 피함) */
+    private static List<RecordDisplayItem> mergeEmphasisIntoRecordDisplayItems(
+            List<RecordDisplayItem> items, PlateAppearance.EmphasisHtml emphasis) {
+        if (items == null || items.isEmpty() || emphasis == null) {
+            return items != null ? items : List.of();
+        }
+        Map<Long, String> res = emphasis.resultById() != null ? emphasis.resultById() : Map.of();
+        Map<Long, List<String>> run = emphasis.runnerLinesById() != null ? emphasis.runnerLinesById() : Map.of();
+        List<RecordDisplayItem> out = new ArrayList<>(items.size());
+        for (RecordDisplayItem it : items) {
+            if (it.plateAppearance() == null) {
+                out.add(it);
+                continue;
+            }
+            Long id = it.plateAppearance().getId();
+            if (id == null) {
+                out.add(it);
+                continue;
+            }
+            String resultHtml = res.get(id);
+            List<String> runnerHtml = run.get(id);
+            out.add(new RecordDisplayItem(
+                    it.plateAppearance(),
+                    it.substitution(),
+                    it.halfInningBreak(),
+                    it.halfInningHandoff(),
+                    resultHtml,
+                    runnerHtml));
+        }
+        return out;
     }
 
     /**
@@ -267,6 +299,9 @@ public class GameService {
         Map<String, List<PitcherSubstitution>> subsByHalf = (substitutions != null ? substitutions : List.<PitcherSubstitution>of()).stream()
                 .collect(Collectors.groupingBy(ps -> ps.getInning() + "_" + ps.getIsTop(), LinkedHashMap::new, Collectors.toList()));
         List<PlateAppearance> list = plateAppearances != null ? plateAppearances : List.of();
+        if (shouldShowGameStartBanner(list)) {
+            out.add(RecordDisplayItem.handoff(HalfInningHandoff.gameStart()));
+        }
         for (int idx = 0; idx < list.size(); idx++) {
             PlateAppearance pa = list.get(idx);
             Integer inning = pa.getInning();
@@ -303,7 +338,9 @@ public class GameService {
                     || !sameHalfInning(list.get(idx + 1), inning, isTop);
             if (lastOfHalf) {
                 PlateAppearance nextPa = (idx + 1 < list.size()) ? list.get(idx + 1) : null;
-                out.add(RecordDisplayItem.handoff(buildHalfHandoffDisplay(inning, Boolean.TRUE.equals(isTop), nextPa)));
+                HalfInningHandoff handoff = buildHalfHandoffDisplay(inning, Boolean.TRUE.equals(isTop), nextPa);
+                handoff = appendGameEndSuffixForRecordLine(handoff, game, list, idx == list.size() - 1);
+                out.add(RecordDisplayItem.handoff(handoff));
                 HalfInningBreakNote note = breakByKey.get(key);
                 if (note != null && note.hasContent()) {
                     out.add(RecordDisplayItem.halfBreak(note));
@@ -311,6 +348,15 @@ public class GameService {
             }
         }
         return out;
+    }
+
+    /** 첫 타석이 1회초이면 기록 맨 앞에 ◇ 경기시작 / 1회초 시작 배너를 둔다. */
+    private static boolean shouldShowGameStartBanner(List<PlateAppearance> list) {
+        if (list == null || list.isEmpty()) {
+            return false;
+        }
+        PlateAppearance p0 = list.get(0);
+        return p0.getInning() != null && p0.getInning() == 1 && Boolean.TRUE.equals(p0.getIsTop());
     }
 
     /**
@@ -330,6 +376,26 @@ public class GameService {
             return new HalfInningHandoff(inning, false, inning + "회말 종료 → " + (inning + 1) + "회초 시작");
         }
         return new HalfInningHandoff(inning, false, inning + "회말 종료");
+    }
+
+    /**
+     * 스코어보드 중앙과 동일하게 {@link #computeScoreboardSituationLabel}가 "종료"일 때만,
+     * 해당 경기의 <strong>마지막 타석</strong>이 속한 반 이닝 끝 멘트에 {@code / 경기 종료}를 붙인다.
+     * (DB가 COMPLETED가 아니어도 9회초 끝 홈 리드 등 스코어보드가 종료로 보이는 경우 포함 · 연장 10회+ 마지막도 동일)
+     */
+    HalfInningHandoff appendGameEndSuffixForRecordLine(HalfInningHandoff handoff, Game game,
+                                                       List<PlateAppearance> chronological, boolean lastPaOfGame) {
+        if (handoff == null || game == null || !lastPaOfGame || chronological == null || chronological.isEmpty()) {
+            return handoff;
+        }
+        if (!"종료".equals(computeScoreboardSituationLabel(game, chronological))) {
+            return handoff;
+        }
+        String line = handoff.line();
+        if (line != null && line.contains("경기 종료")) {
+            return handoff;
+        }
+        return new HalfInningHandoff(handoff.filterInning(), handoff.endedTop(), line + HalfInningHandoff.GAME_END_DISPLAY_SUFFIX);
     }
 
     private static final Pattern HALF_INNING_HEAD = Pattern.compile("^(\\d+)(초|말)$");
@@ -488,29 +554,79 @@ public class GameService {
      * {@code endedTop}: 방금 끝난 반이 회초면 true, 회말이면 false(파싱 확정 키 {@link #confirmHalfKey()}에 사용).
      */
     public record HalfInningHandoff(int filterInning, boolean endedTop, String line) {
-        /** 파싱 병합 잠금 키 (예: {@code 1_true} = 1회초) */
+        /** 기록 줄 끝에 붙는 경기 종료 표시 (템플릿에서 {@code / } 는 기본색, {@code 경기 종료} 만 빨간색) */
+        public static final String GAME_END_DISPLAY_SUFFIX = " / 경기 종료";
+
+        private static final String GAME_START_LINE_MARKER = "__GAME_START__";
+
+        /** ◇ 경기시작 / 1회초 시작 (템플릿 전용 마커) */
+        public static HalfInningHandoff gameStart() {
+            return new HalfInningHandoff(1, true, GAME_START_LINE_MARKER);
+        }
+
+        public boolean gameStartBanner() {
+            return GAME_START_LINE_MARKER.equals(line);
+        }
+
+        /** 파싱 병합 잠금 키 (예: {@code 1_true} = 1회초). 경기 시작 배너는 전용 키. */
         public String confirmHalfKey() {
+            if (gameStartBanner()) {
+                return "__game_start__";
+            }
             return filterInning + "_" + endedTop;
+        }
+
+        /** {@link #GAME_END_DISPLAY_SUFFIX} 앞까지(◇ 바로 뒤 본문). */
+        public String lineWithoutGameEndSuffix() {
+            if (gameStartBanner()) {
+                return "";
+            }
+            if (line != null && line.endsWith(GAME_END_DISPLAY_SUFFIX)) {
+                return line.substring(0, line.length() - GAME_END_DISPLAY_SUFFIX.length());
+            }
+            return line;
+        }
+
+        public boolean hasGameEndSuffix() {
+            return line != null && line.endsWith(GAME_END_DISPLAY_SUFFIX);
+        }
+
+        /** {@code / } 구분자(기본색). 경기 종료 접미가 있을 때만. */
+        public String gameEndSuffixSeparator() {
+            return hasGameEndSuffix() ? " / " : null;
+        }
+
+        /** 빨간색으로만 쓸 라벨. */
+        public String gameEndSuffixLabel() {
+            return hasGameEndSuffix() ? "경기 종료" : null;
         }
     }
 
     /** 기록 화면에서 타석(PA) 또는 투수 교체 또는 반 이닝 공·교체 메모 또는 자동 교대 멘트 중 하나를 표시 */
-    public record RecordDisplayItem(PlateAppearance plateAppearance, PitcherSubstitution substitution,
-                                    HalfInningBreakNote halfInningBreak, HalfInningHandoff halfInningHandoff) {
+    public record RecordDisplayItem(
+            PlateAppearance plateAppearance,
+            PitcherSubstitution substitution,
+            HalfInningBreakNote halfInningBreak,
+            HalfInningHandoff halfInningHandoff,
+            /** {@link PlateAppearance#buildEmphasisHtml} 결과(타석 결과 줄). null이면 엔티티 폴백 */
+            String resultEmphasisHtml,
+            /** 주자 줄별 강조 HTML. null이면 엔티티 폴백 */
+            List<String> runnerPlaysEmphasisHtml) {
+
         public static RecordDisplayItem pa(PlateAppearance pa) {
-            return new RecordDisplayItem(pa, null, null, null);
+            return new RecordDisplayItem(pa, null, null, null, null, null);
         }
 
         public static RecordDisplayItem sub(PitcherSubstitution s) {
-            return new RecordDisplayItem(null, s, null, null);
+            return new RecordDisplayItem(null, s, null, null, null, null);
         }
 
         public static RecordDisplayItem halfBreak(HalfInningBreakNote n) {
-            return new RecordDisplayItem(null, null, n, null);
+            return new RecordDisplayItem(null, null, n, null, null, null);
         }
 
         public static RecordDisplayItem handoff(HalfInningHandoff h) {
-            return new RecordDisplayItem(null, null, null, h);
+            return new RecordDisplayItem(null, null, null, h, null, null);
         }
     }
 

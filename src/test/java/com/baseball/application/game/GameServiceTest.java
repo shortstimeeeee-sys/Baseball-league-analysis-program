@@ -155,6 +155,75 @@ class GameServiceTest {
         assertThat(h.confirmHalfKey()).isEqualTo("9_false");
     }
 
+    @Test
+    @DisplayName("경기 시작 배너: 전용 키·접미 분리 없음")
+    void gameStartBanner_marker() {
+        GameService.HalfInningHandoff g = GameService.HalfInningHandoff.gameStart();
+        assertThat(g.gameStartBanner()).isTrue();
+        assertThat(g.confirmHalfKey()).isEqualTo("__game_start__");
+        assertThat(g.gameEndSuffixLabel()).isNull();
+    }
+
+    @Test
+    @DisplayName("스코어보드가 종료일 때 마지막 반 멘트에 경기 종료 접미사 (9회말·완료)")
+    void appendGameEndSuffixForRecordLine_ninthBottomCompleted() {
+        GameService svc = emptyGameService();
+        GameService.HalfInningHandoff base = GameService.buildHalfHandoffDisplay(9, false, null);
+        Game g = Mockito.mock(Game.class);
+        given(g.getStatus()).willReturn(GameStatus.COMPLETED);
+        PlateAppearance pa = Mockito.mock(PlateAppearance.class);
+        given(pa.getInning()).willReturn(9);
+        given(pa.getIsTop()).willReturn(false);
+        GameService.HalfInningHandoff out = svc.appendGameEndSuffixForRecordLine(base, g, List.of(pa), true);
+        assertThat(out.line()).isEqualTo("9회말 종료 / 경기 종료");
+    }
+
+    @Test
+    @DisplayName("스코어보드가 종료일 때 연장 마지막 반에도 경기 종료 접미사")
+    void appendGameEndSuffixForRecordLine_extraInningsCompleted() {
+        GameService svc = emptyGameService();
+        GameService.HalfInningHandoff base = GameService.buildHalfHandoffDisplay(10, false, null);
+        Game g = Mockito.mock(Game.class);
+        given(g.getStatus()).willReturn(GameStatus.COMPLETED);
+        PlateAppearance pa = Mockito.mock(PlateAppearance.class);
+        given(pa.getInning()).willReturn(10);
+        given(pa.getIsTop()).willReturn(false);
+        GameService.HalfInningHandoff out = svc.appendGameEndSuffixForRecordLine(base, g, List.of(pa), true);
+        assertThat(out.line()).isEqualTo("10회말 종료 / 경기 종료");
+    }
+
+    @Test
+    @DisplayName("DB 미완료여도 9회초 끝 홈 리드면 스코어보드 종료와 동일하게 접미사")
+    void appendGameEndSuffixForRecordLine_nineTopHomeLeadsNotCompleted() {
+        GameService svc = emptyGameService();
+        GameService.HalfInningHandoff base = GameService.buildHalfHandoffDisplay(9, true, null);
+        Game g = Mockito.mock(Game.class);
+        given(g.getStatus()).willReturn(GameStatus.IN_PROGRESS);
+        given(g.getHomeScore()).willReturn(4);
+        given(g.getAwayScore()).willReturn(3);
+        PlateAppearance pa = Mockito.mock(PlateAppearance.class);
+        given(pa.getInning()).willReturn(9);
+        given(pa.getIsTop()).willReturn(true);
+        GameService.HalfInningHandoff out = svc.appendGameEndSuffixForRecordLine(base, g, List.of(pa), true);
+        assertThat(out.line()).isEqualTo("9회초 종료 / 경기 종료");
+    }
+
+    @Test
+    @DisplayName("진행 중이면 마지막 멘트에 경기 종료 미부여")
+    void appendGameEndSuffixForRecordLine_inProgressNoSuffix() {
+        GameService svc = emptyGameService();
+        GameService.HalfInningHandoff base = GameService.buildHalfHandoffDisplay(9, false, null);
+        Game g = Mockito.mock(Game.class);
+        given(g.getStatus()).willReturn(GameStatus.IN_PROGRESS);
+        given(g.getHomeScore()).willReturn(3);
+        given(g.getAwayScore()).willReturn(3);
+        PlateAppearance pa = Mockito.mock(PlateAppearance.class);
+        given(pa.getInning()).willReturn(9);
+        given(pa.getIsTop()).willReturn(false);
+        GameService.HalfInningHandoff out = svc.appendGameEndSuffixForRecordLine(base, g, List.of(pa), true);
+        assertThat(out.line()).isEqualTo("9회말 종료");
+    }
+
     private static GameService emptyGameService() {
         GameRepository gameRepository = Mockito.mock(GameRepository.class);
         TeamRepository teamRepository = Mockito.mock(TeamRepository.class);

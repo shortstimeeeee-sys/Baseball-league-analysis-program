@@ -427,5 +427,47 @@ class GameRecordTextParserTest {
         assertThat(dto.getPitcherSubstitutions().get(2).getPitcherOutName()).isEqualTo("정철원");
         assertThat(dto.getPitcherSubstitutions().get(2).getPitcherInName()).isEqualTo("박정민");
     }
+
+    @Test
+    @DisplayName("4회말 첫 타자 카드 맨 아래 투수교체 = 이닝 시작 직후 교체·해당 타자는 IN 투수 상대 (afterPa=0)")
+    void parse_fourthInningBottom_firstBatter_pitcherChangeAtEndOfCard_afterPaZero() {
+        String text = """
+                4회말 롯데 공격
+                한동희 선수 페이지
+                한동희4번타자타율 0.000
+                타석2타수2안타0득점0타점0홈런0볼넷0피삼진0
+                투구 위치보기
+                한동희 : 유격수 땅볼 아웃 (유격수->1루수 송구아웃)
+                기록 펼치기
+                롯데 승리 확률 41.4% (-3.2%p)
+                2구타격
+                129km/h커터
+                1구볼
+                135km/h직구
+                볼카운트1 - 0
+                교체
+                투수: 주권
+                OUT
+                투수: 우규민
+                IN
+                """;
+
+        GameRecordImportDto dto = parser.parse(text);
+
+        assertThat(dto.getPlateAppearances()).hasSize(1);
+        GameRecordImportDto.PlateAppearanceRow pa = dto.getPlateAppearances().get(0);
+        assertThat(pa.getInning()).isEqualTo(4);
+        assertThat(pa.isTop()).isFalse();
+        assertThat(pa.getBatterName()).isEqualTo("한동희");
+        assertThat(pa.getPitcherName()).isEqualTo("우규민");
+
+        var pitchSub = dto.getPitcherSubstitutions().stream()
+                .filter(s -> s.getKind() == SubstitutionKind.PITCHER)
+                .findFirst();
+        assertThat(pitchSub).isPresent();
+        assertThat(pitchSub.get().getPitcherOutName()).isEqualTo("주권");
+        assertThat(pitchSub.get().getPitcherInName()).isEqualTo("우규민");
+        assertThat(pitchSub.get().getAfterPaSequenceOrder()).isZero();
+    }
 }
 

@@ -2,6 +2,7 @@ package com.baseball.application.game;
 
 import com.baseball.application.game.dto.GameRecordImportDto;
 import com.baseball.domain.game.Game.GameStatus;
+import com.baseball.domain.game.PitcherNameNormalizer;
 import com.baseball.domain.game.SubstitutionKind;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -155,6 +156,11 @@ public class GameRecordTextParser {
                             if (one.kind() == SubstitutionKind.RUNNER) {
                                 pendingBatterSubstitutionTypeByName.put(one.inName().trim(), "PINCH_RUNNER");
                             }
+                            // 일부 중계 UI는 타자 카드 맨 아래에 "교체"를 붙인다. 예: 한동희 결과·투구 뒤에
+                            // "교체 / 투수: 주권 OUT → 투수: 우규민 IN"이 오면, 실제로는 한동희 타석 전에
+                            // 마운드가 바뀐 것이므로 이 타자 블록의 투수는 IN(우규민)이어야 한다.
+                            // after=직전 타석까지(sequenceOrder)로 두어 기록 목록에서 교체가 이 타석보다 앞에 오게 하고,
+                            // 위에서 pitcherName=IN 이름으로 맞춘다(피안타·투수 귀속).
                             pitcherSubstitutions.add(GameRecordImportDto.PitcherSubstitutionRow.builder()
                                     .inning(subInning)
                                     .isTop(subIsTop)
@@ -164,7 +170,7 @@ public class GameRecordTextParser {
                                     .pitcherOutName(one.outName())
                                     .pitcherInName(one.inName())
                                     .battersFaced(bf)
-                                    .afterPaSequenceOrder(sequenceOrder + 1)
+                                    .afterPaSequenceOrder(sequenceOrder)
                                     .build());
                             if (one.kind() == SubstitutionKind.PITCHER) {
                                 if (subIsTop) {
@@ -172,6 +178,7 @@ public class GameRecordTextParser {
                                 } else {
                                     currentAwayPitcher = one.inName();
                                 }
+                                pitcherName = one.inName();
                             }
                             j = one.nextIndex();
                         }
@@ -284,6 +291,14 @@ public class GameRecordTextParser {
         boolean newestFirstFeed = detectNewestFirstInningFeed(lines)
                 || looksLikeReverseOrderedFeed(Arrays.asList(lines));
         reorderPlateAppearancesChronologically(plateAppearances, pitcherSubstitutions, newestFirstFeed);
+        Map<Integer, String> parsedPitcherBySequence = new LinkedHashMap<>();
+        for (GameRecordImportDto.PlateAppearanceRow pa : plateAppearances) {
+            parsedPitcherBySequence.put(pa.getSequenceOrder(),
+                    pa.getPitcherName() != null ? pa.getPitcherName().trim() : "");
+        }
+        realignPitcherSubstitutionAfterPaUsingParsedPitcherFirstAppearance(
+                plateAppearances, pitcherSubstitutions, parsedPitcherBySequence);
+        recomputePitcherNamesFromSubstitutions(plateAppearances, pitcherSubstitutions);
 
         if (awayTeamName == null) awayTeamName = "원정";
         if (homeTeamName == null) homeTeamName = "홈";
@@ -818,6 +833,53 @@ public class GameRecordTextParser {
     }
 
     /**
+     * 타자 카드 맨 아래 "교체"가 최신순 붙여넣기 때문에 잘못된 타자 블록에 붙은 경우,
+     * {@link #reorderPlateAppearancesChronologically} 이후에도 afterPa가 실제 마운드 교체 직후 첫 타석과 어긋날 수 있다.
+     * 파싱 단계에서 타석 행에 이미 채워 둔 투수명(예: 투수: 우규민)을 기준으로, IN 투수가 처음 등장하는 타석을 찾아
+     * 그 직전 타석까지를 afterPa로 맞춘다. (한동희 vs 윤동희 순서 꼬임 보정)
+     */
+    private static void realignPitcherSubstitutionAfterPaUsingParsedPitcherFirstAppearance(
+            List<GameRecordImportDto.PlateAppearanceRow> plateAppearances,
+            List<GameRecordImportDto.PitcherSubstitutionRow> pitcherSubstitutions,
+            Map<Integer, String> parsedPitcherBySequence) {
+        if (plateAppearances == null || plateAppearances.isEmpty()
+                || pitcherSubstitutions == null || pitcherSubstitutions.isEmpty()
+                || parsedPitcherBySequence == null || parsedPitcherBySequence.isEmpty()) {
+            return;
+        }
+        for (GameRecordImportDto.PitcherSubstitutionRow sub : pitcherSubstitutions) {
+            if (sub == null) continue;
+            if (sub.getKind() != null && sub.getKind() != SubstitutionKind.PITCHER) continue;
+            String inName = sub.getPitcherInName();
+            if (inName == null || inName.isBlank()) continue;
+            String halfKey = sub.getInning() + "_" + sub.isTop();
+            List<GameRecordImportDto.PlateAppearanceRow> inHalf = plateAppearances.stream()
+                    .filter(pa -> halfKey.equals(pa.getInning() + "_" + pa.isTop()))
+                    .sorted(Comparator.comparingInt(GameRecordImportDto.PlateAppearanceRow::getSequenceOrder))
+                    .toList();
+            GameRecordImportDto.PlateAppearanceRow prevInHalf = null;
+            boolean found = false;
+            for (GameRecordImportDto.PlateAppearanceRow pa : inHalf) {
+                String parsed = parsedPitcherBySequence.get(pa.getSequenceOrder());
+                if (parsed != null && !parsed.isBlank()
+                        && PitcherNameNormalizer.samePitcher(inName.trim(), parsed)) {
+                    if (prevInHalf != null) {
+                        sub.setAfterPaSequenceOrder(prevInHalf.getSequenceOrder());
+                    } else {
+                        sub.setAfterPaSequenceOrder(0);
+                    }
+                    found = true;
+                    break;
+                }
+                prevInHalf = pa;
+            }
+            if (!found) {
+                // 파싱 시 투수명이 비어 있거나 IN과 일치하는 타석이 없으면 기존 afterPa 유지
+            }
+        }
+    }
+
+    /**
      * 타석·투수교체를 반 이닝 단위로 모은 뒤, 경기 시간순(이닝↑, 초→말)으로 정렬한다.
      * 최신순 피드면 각 반 이닝 안의 타석 순서를 뒤집는다.
      */
@@ -886,6 +948,134 @@ public class GameRecordTextParser {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 타석·교체를 시간순으로 맞춘 뒤, {@link com.baseball.application.game.GameService} 기록 표시와 동일한 규칙으로
+     * 각 타석의 투수명을 채운다. 최신순(역순) 붙여넣기에서 afterPaSequenceOrder·블록 내 교체 해석이 어긋나도
+     * 피안타·투수 귀속이 일관되게 나오도록 한다.
+     */
+    private static void recomputePitcherNamesFromSubstitutions(
+            List<GameRecordImportDto.PlateAppearanceRow> plateAppearances,
+            List<GameRecordImportDto.PitcherSubstitutionRow> pitcherSubstitutions) {
+        if (plateAppearances == null || plateAppearances.isEmpty()) {
+            return;
+        }
+        List<GameRecordImportDto.PlateAppearanceRow> list = new ArrayList<>(plateAppearances);
+        list.sort(Comparator.comparingInt(GameRecordImportDto.PlateAppearanceRow::getSequenceOrder));
+
+        List<GameRecordImportDto.PitcherSubstitutionRow> subs = pitcherSubstitutions != null
+                ? pitcherSubstitutions : List.of();
+        Map<String, List<GameRecordImportDto.PitcherSubstitutionRow>> subsByHalf = new LinkedHashMap<>();
+        for (GameRecordImportDto.PitcherSubstitutionRow s : subs) {
+            if (s == null) continue;
+            subsByHalf.computeIfAbsent(s.getInning() + "_" + s.isTop(), k -> new ArrayList<>()).add(s);
+        }
+        for (List<GameRecordImportDto.PitcherSubstitutionRow> ch : subsByHalf.values()) {
+            ch.sort(Comparator
+                    .comparingInt((GameRecordImportDto.PitcherSubstitutionRow s) ->
+                            s.getAfterPaSequenceOrder() != null ? s.getAfterPaSequenceOrder() : 0)
+                    .thenComparingInt(GameRecordImportDto.PitcherSubstitutionRow::getDisplayOrder));
+        }
+
+        String initialHomePitcherOut = null;
+        String initialAwayPitcherOut = null;
+        for (GameRecordImportDto.PitcherSubstitutionRow s : subs) {
+            if (s == null) continue;
+            if (s.getKind() != null && s.getKind() != SubstitutionKind.PITCHER) continue;
+            if (Boolean.TRUE.equals(s.isTop())) {
+                if (initialHomePitcherOut == null || initialHomePitcherOut.isBlank()) {
+                    initialHomePitcherOut = s.getPitcherOutName();
+                }
+            } else {
+                if (initialAwayPitcherOut == null || initialAwayPitcherOut.isBlank()) {
+                    initialAwayPitcherOut = s.getPitcherOutName();
+                }
+            }
+        }
+
+        String[] current = new String[2]; // [0]=홈(초에 수비), [1]=원정(말에 수비)
+        Set<String> halfInningFirstPaShown = new LinkedHashSet<>();
+
+        for (int idx = 0; idx < list.size(); idx++) {
+            GameRecordImportDto.PlateAppearanceRow pa = list.get(idx);
+            String key = pa.getInning() + "_" + pa.isTop();
+            if (!halfInningFirstPaShown.contains(key)) {
+                halfInningFirstPaShown.add(key);
+                List<GameRecordImportDto.PitcherSubstitutionRow> headSubs = subsByHalf.get(key);
+                if (headSubs != null) {
+                    for (GameRecordImportDto.PitcherSubstitutionRow sub : headSubs) {
+                        if (sub.getKind() != null && sub.getKind() != SubstitutionKind.PITCHER) continue;
+                        Integer after = sub.getAfterPaSequenceOrder();
+                        if (after == null || after == 0) {
+                            applyPitcherInNameFromSubstitution(sub, current);
+                        }
+                    }
+                }
+            }
+            if (pa.isTop()) {
+                if (current[0] == null || current[0].isBlank()) {
+                    current[0] = initialHomePitcherOut;
+                }
+            } else {
+                if (current[1] == null || current[1].isBlank()) {
+                    current[1] = initialAwayPitcherOut;
+                }
+            }
+            String assigned = pa.isTop() ? current[0] : current[1];
+            if (assigned != null && !assigned.isBlank()) {
+                pa.setPitcherName(assigned);
+            }
+
+            List<GameRecordImportDto.PitcherSubstitutionRow> afterSubs = subsByHalf.get(key);
+            if (afterSubs != null) {
+                int paSeq = pa.getSequenceOrder();
+                for (GameRecordImportDto.PitcherSubstitutionRow sub : afterSubs) {
+                    if (sub.getKind() != null && sub.getKind() != SubstitutionKind.PITCHER) continue;
+                    Integer after = sub.getAfterPaSequenceOrder();
+                    if (after != null && after != 0 && after == paSeq) {
+                        applyPitcherInNameFromSubstitution(sub, current);
+                    }
+                }
+            }
+        }
+        forwardFillBlankPitcherNamesWithinEachHalf(list);
+    }
+
+    /**
+     * 교체 행이 일부 누락돼도 같은 반 이닝 안에서 직전에 확정된 투수명으로 빈 타석을 채운다.
+     * (선발만 찍히고 구원 구간이 비어 있으면 구원 기록이 사라지는 문제 완화)
+     */
+    private static void forwardFillBlankPitcherNamesWithinEachHalf(List<GameRecordImportDto.PlateAppearanceRow> list) {
+        if (list == null || list.isEmpty()) return;
+        Map<String, List<GameRecordImportDto.PlateAppearanceRow>> byHalf = new LinkedHashMap<>();
+        for (GameRecordImportDto.PlateAppearanceRow pa : list) {
+            byHalf.computeIfAbsent(pa.getInning() + "_" + pa.isTop(), k -> new ArrayList<>()).add(pa);
+        }
+        for (List<GameRecordImportDto.PlateAppearanceRow> chunk : byHalf.values()) {
+            chunk.sort(Comparator.comparingInt(GameRecordImportDto.PlateAppearanceRow::getSequenceOrder));
+            String carry = null;
+            for (GameRecordImportDto.PlateAppearanceRow row : chunk) {
+                String p = row.getPitcherName();
+                if (p != null && !p.trim().isEmpty()) {
+                    carry = p.trim();
+                } else if (carry != null && !carry.isEmpty()) {
+                    row.setPitcherName(carry);
+                }
+            }
+        }
+    }
+
+    private static void applyPitcherInNameFromSubstitution(GameRecordImportDto.PitcherSubstitutionRow sub, String[] currentHomeAway) {
+        if (sub == null) return;
+        if (sub.getKind() != null && sub.getKind() != SubstitutionKind.PITCHER) return;
+        String in = sub.getPitcherInName();
+        if (in == null || in.isBlank()) return;
+        if (Boolean.TRUE.equals(sub.isTop())) {
+            currentHomeAway[0] = in;
+        } else {
+            currentHomeAway[1] = in;
         }
     }
 

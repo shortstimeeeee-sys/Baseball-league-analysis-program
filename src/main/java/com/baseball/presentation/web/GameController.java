@@ -143,7 +143,6 @@ public class GameController {
         model.addAttribute("plateAppearanceTotalCount", totalPa);
         model.addAttribute("plateAppearanceLimit", MAX_PLATE_APPEARANCES_ON_DETAIL);
         model.addAttribute("recordConfirmedHalfKeys", new LinkedHashSet<>(result.game().getRecordConfirmedHalfKeySet()));
-        addPlateAppearanceEmphasisToModel(model, result);
         return "game/detail-record-fragment :: recordFragment";
     }
 
@@ -154,7 +153,6 @@ public class GameController {
         var result = gameService.getDetailWithRecord(id);
         model.addAttribute("game", result.game());
         model.addAttribute("recordDisplayItems", result.keyHighlightItems() != null ? result.keyHighlightItems() : List.<RecordDisplayItem>of());
-        addPlateAppearanceEmphasisToModel(model, result);
         return "game/detail-highlights-fragment :: highlightsFragment";
     }
 
@@ -338,6 +336,7 @@ public class GameController {
         model.addAttribute("recordDisplayItems", listToShow != null ? listToShow : List.of());
         model.addAttribute("plateAppearanceTotalCount", totalPa);
         model.addAttribute("plateAppearanceLimit", MAX_PLATE_APPEARANCES_ON_DETAIL);
+        model.addAttribute("recordConfirmedHalfKeys", new LinkedHashSet<>(result.game().getRecordConfirmedHalfKeySet()));
         return "game/record-import";
     }
 
@@ -555,13 +554,6 @@ public class GameController {
         return dto;
     }
 
-    private static void addPlateAppearanceEmphasisToModel(Model model, GameDetailView result) {
-        model.addAttribute("plateAppearanceResultHtml",
-                result.plateAppearanceResultHtml() != null ? result.plateAppearanceResultHtml() : Map.of());
-        model.addAttribute("plateAppearanceRunnerPlaysHtml",
-                result.plateAppearanceRunnerPlaysHtml() != null ? result.plateAppearanceRunnerPlaysHtml() : Map.of());
-    }
-
     /**
      * 타석이 max 초과면 앞부분을 버리고 최근 max개 타석이 포함된 구간만 반환.
      * 앞에서만 자르면 9회가 DOM에 없어 기록 탭의 N회 이동·필터가 동작하지 않음.
@@ -663,11 +655,11 @@ public class GameController {
             if (pa == null || pa.getIsTop() == null) continue;
             if (Boolean.TRUE.equals(pa.getIsTop()) != topOffense) continue;
             String result = pa.getResultText() != null ? pa.getResultText() : "";
-            if (isHitResult(result)) hits++;
-            if (result.contains("홈런")) homeRuns++;
+            var plays = pa.getRunnerPlaysList();
+            if (plateAppearanceHasHit(result, plays)) hits++;
+            if (resultOrPlaysContainHomerun(result, plays)) homeRuns++;
             if (result.contains("삼진")) strikeouts++;
             if (result.contains("병살")) doublePlays++;
-            var plays = pa.getRunnerPlaysList();
             if (plays != null) {
                 for (String play : plays) {
                     if (play == null) continue;
@@ -680,13 +672,57 @@ public class GameController {
     }
 
     private boolean isHitResult(String result) {
-        if (result == null) return false;
+        if (result == null || result.isBlank()) return false;
         if (result.contains("1루타") || result.contains("2루타") || result.contains("3루타")
                 || result.contains("홈런") || result.contains("내야안타") || result.contains("번트안타")) {
             return true;
         }
-        // "좌전 안타", "우전안타", "중전 안타" 같은 일반 안타 표기도 피안타로 집계
-        return result.contains("안타");
+        // "무안타"·"노안타"는 끝 두 글자가 "안타"라 contains("안타")만으로 안타로 오인됨
+        if (result.contains("무안타") || result.contains("노안타")) {
+            return false;
+        }
+        // "좌전 안타", "우전 안타", "중전 안타" 등
+        if (result.contains("안타")) {
+            return true;
+        }
+        // 안타 키워드 없이 출루만 적는 중계 (실책·야수선택 제외)
+        if (!result.contains("실책") && !result.contains("야수 선택") && !result.contains("야수선택")) {
+            if (result.contains("땅볼로 출루") || result.contains("플라이로 출루") || result.contains("라인드라이브로 출루")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 타석 결과 줄 또는 주자 플레이 줄 중 한 곳이라도 안타로 판정되면 1안타(타자·투수 피안타 집계 공통) */
+    private boolean plateAppearanceHasHit(String result, List<String> runnerPlays) {
+        if (isHitResult(result)) {
+            return true;
+        }
+        if (runnerPlays == null) {
+            return false;
+        }
+        for (String play : runnerPlays) {
+            if (play != null && isHitResult(play)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean resultOrPlaysContainHomerun(String result, List<String> runnerPlays) {
+        if (result != null && result.contains("홈런")) {
+            return true;
+        }
+        if (runnerPlays == null) {
+            return false;
+        }
+        for (String play : runnerPlays) {
+            if (play != null && play.contains("홈런")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<StatCompareRow> buildTeamCompareRows(TeamStats away, TeamStats home) {
@@ -1136,11 +1172,13 @@ public class GameController {
     }
 
     private String resolveAttributedPitcher(com.baseball.domain.game.PlateAppearance pa, Map<Long, String> attributedPitcherByPaId) {
+        if (pa != null && pa.getPitcherName() != null && !pa.getPitcherName().isBlank()) {
+            return pa.getPitcherName();
+        }
         if (pa != null && pa.getId() != null) {
             String attributed = attributedPitcherByPaId.get(pa.getId());
             if (attributed != null && !attributed.isBlank()) return attributed;
         }
-        if (pa != null && pa.getPitcherName() != null && !pa.getPitcherName().isBlank()) return pa.getPitcherName();
         return "-";
     }
 
@@ -1287,52 +1325,51 @@ public class GameController {
                     }
                     attributed = Boolean.TRUE.equals(pa.getIsTop()) ? currentHomePitcher : currentAwayPitcher;
                 }
-                if ((attributed == null || attributed.isBlank()) && pa.getPitcherName() != null) {
-                    attributed = pa.getPitcherName();
+                // 1) DB/파싱으로 채워진 타석별 투수명 우선. 2) 비어 있으면 걷기 추정(교체 줄 순서).
+                // import 시 forwardFill로 빈 칸을 줄이면 선발·구원이 동시에 맞기 쉬움.
+                String storedPitcher = pa.getPitcherName();
+                if (storedPitcher != null) {
+                    storedPitcher = storedPitcher.trim();
                 }
-                boolean matchesAttributed = samePitcherName(pitcherName, attributed);
-                boolean matchesRawPitcher = samePitcherName(pitcherName, pa.getPitcherName());
-                if (!matchesAttributed && !matchesRawPitcher) continue;
+                String effectivePitcher = (storedPitcher != null && !storedPitcher.isEmpty())
+                        ? storedPitcher
+                        : attributed;
+                if (effectivePitcher == null || effectivePitcher.isBlank()) {
+                    continue;
+                }
+                if (!samePitcherName(pitcherName, effectivePitcher)) continue;
                 matchedPa++;
                 String result = pa.getResultText() != null ? pa.getResultText() : "";
-                int resultOuts = estimateOutsFromText(result);
-                int runnerOuts = 0;
                 if (result.contains("삼진")) strikeouts++;
                 if (isWalkLikeResult(result)) walks++;
-                if (isHitResult(result)) hitsAllowed++;
-                earnedRuns += countOccurrences(result, "홈인");
                 var plays = pa.getRunnerPlaysList();
+                if (plateAppearanceHasHit(result, plays)) hitsAllowed++;
+                earnedRuns += countOccurrences(result, "홈인");
                 if (plays != null) {
                     for (String play : plays) {
                         if (play == null) continue;
-                        runnerOuts += estimateOutsFromText(play);
                         earnedRuns += countOccurrences(play, "홈인");
                     }
                 }
-                int paOuts = resultOuts + runnerOuts;
-                // 결과 줄과 주자 줄이 같은 아웃 이벤트를 중복 서술하는 경우가 많아 단일 아웃 플레이는 중복 제거
-                if (resultOuts > 0 && runnerOuts > 0 && !result.contains("병살") && !result.contains("삼중살")) {
-                    paOuts = Math.max(resultOuts, runnerOuts);
-                }
-                outs += Math.min(3, Math.max(0, paOuts));
+                outs += computeOutsForPitcherPlateAppearance(result, plays);
             }
         }
         if (matchedPa == 0) {
         if (plateAppearances != null) {
             for (var pa : plateAppearances) {
-                if (pa == null || pa.getPitcherName() == null) continue;
-                if (!samePitcherName(pitcherName, pa.getPitcherName())) continue;
+                if (pa == null || pa.getPitcherName() == null || pa.getPitcherName().isBlank()) continue;
+                if (!samePitcherName(pitcherName, pa.getPitcherName().trim())) continue;
                 matchedPa++;
                 String result = pa.getResultText() != null ? pa.getResultText() : "";
-                outs += countOccurrences(result, "아웃");
+                var plays = pa.getRunnerPlaysList();
+                if (plateAppearanceHasHit(result, plays)) hitsAllowed++;
+                outs += computeOutsForPitcherPlateAppearance(result, plays);
                 if (result.contains("삼진")) strikeouts++;
                 if (isWalkLikeResult(result)) walks++;
                 earnedRuns += countOccurrences(result, "홈인");
-                var plays = pa.getRunnerPlaysList();
                 if (plays != null) {
                     for (String play : plays) {
                         if (play == null) continue;
-                        outs += countOccurrences(play, "아웃");
                         earnedRuns += countOccurrences(play, "홈인");
                     }
                 }
@@ -1382,6 +1419,35 @@ public class GameController {
         if (text.contains("병살")) return 2;
         if (text.contains("아웃")) return 1;
         return 0;
+    }
+
+    /**
+     * 타석당 투수에게 귀속되는 아웃 수(0~3).
+     * 결과 줄에 병살·삼중살이 있으면 아웃 수는 그 줄로 확정하고, 주자 줄에 반복된 태그아웃 등을 더하지 않는다.
+     * (그렇지 않으면 병살 한 번에 아웃이 3~4개로 잡혀 이닝이 부풀어 오를 수 있음)
+     */
+    private int computeOutsForPitcherPlateAppearance(String result, List<String> runnerPlays) {
+        if (result == null) result = "";
+        if (result.contains("삼중살")) {
+            return 3;
+        }
+        if (result.contains("병살")) {
+            return 2;
+        }
+        int resultOuts = estimateOutsFromText(result);
+        int runnerOuts = 0;
+        if (runnerPlays != null) {
+            for (String play : runnerPlays) {
+                if (play == null) continue;
+                runnerOuts += estimateOutsFromText(play);
+            }
+        }
+        int paOuts = resultOuts + runnerOuts;
+        // 결과 줄과 주자 줄이 같은 아웃 이벤트를 중복 서술하는 경우가 많아 단일 아웃 플레이는 중복 제거
+        if (resultOuts > 0 && runnerOuts > 0) {
+            paOuts = Math.max(resultOuts, runnerOuts);
+        }
+        return Math.min(3, Math.max(0, paOuts));
     }
 
     private boolean isBaserunningOutEvent(String text) {
@@ -1471,17 +1537,17 @@ public class GameController {
             int runsInPa = countRunsInPa(pa);
 
             if (isOfficialAtBatResult(result)) acc.atBats++;
-            if (isHitResult(result)) {
+            List<String> rnp = pa.getRunnerPlaysList();
+            if (plateAppearanceHasHit(result, rnp)) {
                 acc.hits++;
-                if (result.contains("홈런")) acc.homeRuns++;
+                if (resultOrPlaysContainHomerun(result, rnp)) acc.homeRuns++;
             }
             if (isWalkLikeResult(result)) acc.walks++;
             if (result.contains("삼진")) acc.strikeouts++;
             acc.rbis += runsInPa;
 
-            var plays = pa.getRunnerPlaysList();
-            if (plays != null) {
-                for (String play : plays) {
+            if (rnp != null) {
+                for (String play : rnp) {
                     if (play == null) continue;
                     String runner = extractRunnerNameFromPlay(play);
                     if (runner != null && runner.equals(name) && (play.contains("홈인") || play.contains(":홈"))) {
@@ -1550,9 +1616,17 @@ public class GameController {
             boolean thisIsHomePitcher = Boolean.TRUE.equals(pa.getIsTop());
             if (thisIsHomePitcher != homePitcher) continue;
 
-            String name = sanitizePlayerName(resolveAttributedPitcher(pa, attributedPitcherByPaId));
-            if (name == null) name = sanitizePlayerName(pa.getPitcherName());
-            if (name == null) name = "-";
+            String name;
+            if (pa.getPitcherName() != null && !pa.getPitcherName().isBlank()) {
+                name = sanitizePlayerName(pa.getPitcherName().trim());
+            } else {
+                String resolved = resolveAttributedPitcher(pa, attributedPitcherByPaId);
+                if (resolved == null || resolved.isBlank() || "-".equals(resolved)) {
+                    continue;
+                }
+                name = sanitizePlayerName(resolved);
+            }
+            if (name == null || name.isBlank()) continue;
 
             PitcherAccumulator acc = byName.computeIfAbsent(name, k -> new PitcherAccumulator());
             String result = pa.getResultText() != null ? pa.getResultText() : "";
@@ -1562,29 +1636,17 @@ public class GameController {
             acc.battersFaced++;
             acc.pitches += (pa.getPitches() != null ? pa.getPitches().size() : 0);
             if (isOfficialAtBatResult(result)) acc.atBats++;
-            if (isHitResult(result)) {
+            var plays = pa.getRunnerPlaysList();
+            if (plateAppearanceHasHit(result, plays)) {
                 acc.hitsAllowed++;
-                if (result.contains("홈런")) acc.homeRunsAllowed++;
+                if (resultOrPlaysContainHomerun(result, plays)) acc.homeRunsAllowed++;
             }
             if (isWalkLikeResult(result)) acc.walks++;
             if (result.contains("삼진")) acc.strikeouts++;
             acc.runsAllowed += runsInPa;
             acc.earnedRuns += paHasError(pa) ? 0 : runsInPa;
 
-            int resultOuts = estimateOutsFromText(result);
-            int runnerOuts = 0;
-            var plays = pa.getRunnerPlaysList();
-            if (plays != null) {
-                for (String play : plays) {
-                    if (play == null) continue;
-                    runnerOuts += estimateOutsFromText(play);
-                }
-            }
-            int paOuts = resultOuts + runnerOuts;
-            if (resultOuts > 0 && runnerOuts > 0 && !result.contains("병살") && !result.contains("삼중살")) {
-                paOuts = Math.max(resultOuts, runnerOuts);
-            }
-            int safeOuts = Math.min(3, Math.max(0, paOuts));
+            int safeOuts = computeOutsForPitcherPlateAppearance(result, plays);
             if (pa.getInning() != null) {
                 String halfKey = pa.getInning() + "_" + Boolean.TRUE.equals(pa.getIsTop());
                 int used = outsUsedByHalf.getOrDefault(halfKey, 0);
