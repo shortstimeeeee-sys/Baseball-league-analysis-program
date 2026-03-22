@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<body>
+  <div th:fragment="highlightsFragment" id="highlights-fragment-content">
+    <div class="play-by-play-list" th:if="${recordDisplayItems != null and !recordDisplayItems.isEmpty()}">
+      <th:block th:each="item : ${recordDisplayItems}">
+        <!-- 투수 교체 (수비 팀 기준 라벨) -->
+        <div class="pa-block pa-substitution" th:if="${item.substitution != null}" th:attr="data-inning=${item.substitution.inning}" th:classappend="${item.substitution.isTop} ? 'pa-home' : 'pa-away'">
+          <div class="pa-inning-label">
+            <!-- 2회초 교체라면 홈 투수 교체이므로 홈 팀 기준으로 표시 -->
+            <span class="pa-half-badge" th:classappend="${item.substitution.isTop} ? 'badge-home' : 'badge-away'" th:text="${item.substitution.isTop} ? '홈' : '어웨이'">홈</span>
+            <span th:text="|${item.substitution.inning}회${item.substitution.isTop ? '초' : '말'}|">2회초</span>
+            <span th:text="${item.substitution.isTop ? game.homeTeam.name : game.awayTeam.name}">팀</span>
+          </div>
+          <div class="pa-result text-muted">
+            <span class="substitution-label">투수 교체:</span>
+            <span th:text="${item.substitution.pitcherOutName}">문동주</span>
+            <span th:text="|(${item.substitution.inning - 1}이닝 0실점)|">(1이닝 0실점)</span>
+            <span class="sub-out">OUT</span>
+            <span>→</span>
+            <span th:text="${item.substitution.pitcherInName}">정우주</span>
+            <span class="sub-in">IN</span>
+          </div>
+        </div>
+        <!-- 득점/실책 타석 -->
+        <div class="pa-block" th:if="${item.plateAppearance != null}" th:attr="data-inning=${item.plateAppearance.inning}" th:classappend="${item.plateAppearance.isTop} ? 'pa-away' : 'pa-home'">
+          <div class="pa-inning-label">
+            <span class="pa-half-badge" th:classappend="${item.plateAppearance.isTop} ? 'badge-away' : 'badge-home'" th:text="${item.plateAppearance.isTop} ? '어웨이' : '홈'">어웨이</span>
+            <span th:text="|${item.plateAppearance.inning}회${item.plateAppearance.isTop ? '초' : '말'}|">1회초</span>
+            <span th:text="${item.plateAppearance.isTop ? game.awayTeam.name : game.homeTeam.name}">팀</span>
+            <span>공격</span>
+          </div>
+          <div class="pa-batter">
+            <span class="batter-name" th:text="${item.plateAppearance.batterName}">타자</span>
+            <span th:if="${item.plateAppearance.batterOrder != null}" th:text="|${item.plateAppearance.batterOrder}번타자|">1번</span>
+          </div>
+          <div class="pa-result"
+               th:with="resEm=${item.plateAppearance.id != null ? plateAppearanceResultHtml[item.plateAppearance.id] : null}"
+               th:utext="${resEm != null ? resEm : item.plateAppearance.resultTextWithOutEmphasis}">결과</div>
+          <div class="pa-runner-plays text-muted small mt-1" th:if="${item.plateAppearance.runnerPlaysList != null and !item.plateAppearance.runnerPlaysList.isEmpty()}">
+            <div th:with="runEm=${item.plateAppearance.id != null ? plateAppearanceRunnerPlaysHtml[item.plateAppearance.id] : null}"
+                 th:each="play : ${runEm != null ? runEm : item.plateAppearance.runnerPlaysListWithOutEmphasis}"
+                 th:utext="${play}">2루주자 김현수 : 3루까지 진루</div>
+          </div>
+        </div>
+      </th:block>
+    </div>
+    <p class="text-muted" th:if="${recordDisplayItems == null or recordDisplayItems.isEmpty()}">주요 내용이 없습니다. (득점·교체·실책이 없거나 기록이 비어 있습니다.)</p>
+  </div>
+</body>
+</html>

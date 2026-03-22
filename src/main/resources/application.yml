@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: baseball-league-analysis
+
+  # H2 파일 DB (재시작해도 데이터 유지, 초기화 방지)
+  datasource:
+    url: jdbc:h2:file:./data/baseball-league-db;MODE=MYSQL;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # H2 콘솔 (개발 시 확인용)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      # create/create-drop 사용 금지. update로 기존 데이터 유지
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: true
+
+  # 정적 리소스 캐시 끔 (개발 시 CSS 항상 최신)
+  web:
+    resources:
+      cache:
+        period: 0
+
+  # 템플릿 캐시 끔 → 재시작 시 항상 최신 HTML
+  thymeleaf:
+    cache: false
+
+server:
+  port: 8080
+
+# 로깅 (개발 시 SQL 확인용)
+logging:
+  level:
+    com.baseball: INFO
+    org.hibernate.SQL: DEBUG

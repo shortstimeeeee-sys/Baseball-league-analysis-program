@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout(${'리그 · ' + league.name}, ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title" th:text="${league.name}">리그명</h1>
+    <div class="d-flex gap-1 flex-wrap">
+      <a th:href="@{/leagues/{id}/edit(id=${league.id})}" class="btn btn-secondary">수정</a>
+      <form th:action="@{/leagues/{id}/delete(id=${league.id})}" method="post" style="display:inline;">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+      </form>
+      <a href="/leagues" class="btn btn-secondary">목록</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="form-group mb-0">
+        <label>국가</label>
+        <p th:text="${league.country} ?: '-'">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>설명</label>
+        <p th:text="${league.description} ?: '-'">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>등록일</label>
+        <p th:text="${#temporals.format(league.createdAt, 'yyyy-MM-dd HH:mm')}">-</p>
+      </div>
+    </div>
+  </div>
+</th:block>
+</html>

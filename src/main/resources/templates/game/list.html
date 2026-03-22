@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout(${'경기 스코어'}, ~{::content})}">
+<th:block th:fragment="content">
+  <header class="page-header">
+    <div class="page-header-top">
+      <span class="page-section-label">Games</span>
+      <h1 class="page-title t-h1">경기 스코어</h1>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <a href="/games/import" class="btn btn-primary">경기 등록 (기록으로)</a>
+      <a href="/games/new" class="btn btn-secondary">간단 등록</a>
+    </div>
+  </header>
+
+  <nav class="games-tabs">
+    <a th:href="@{/games(category='ALL')}" th:classappend="${isAllCategory} ? 'active'">전체</a>
+    <a th:href="@{/games(category='EXHIBITION')}" th:classappend="${isExhibitionCategory} ? 'active'">시범 경기</a>
+    <a th:href="@{/games(category='LEAGUE')}" th:classappend="${isLeagueCategory} ? 'active'">리그 경기</a>
+  </nav>
+
+  <div class="games-date-bar">
+    <div class="games-date-nav">
+      <a th:href="@{/games(category=${selectedCategory})}" th:classappend="${selectedDate == null} ? 'date-selected'" title="전체 날짜">전체</a>
+    </div>
+    <th:block th:if="${availableDates != null and !availableDates.isEmpty()}">
+      <a th:each="d : ${availableDates}" th:href="@{/games(date=${#temporals.format(d, 'yyyy-MM-dd')}, category=${selectedCategory})}"
+         th:text="${#temporals.format(d, 'M/d (E)')}"
+         th:classappend="${selectedDate != null and #temporals.format(d, 'yyyy-MM-dd') == #temporals.format(selectedDate, 'yyyy-MM-dd')} ? 'date-selected'"
+         th:title="${#temporals.format(d, 'yyyy-MM-dd')}">3/14 (토)</a>
+    </th:block>
+    <span th:if="${availableDates == null or availableDates.isEmpty()}" class="text-muted">날짜별 필터: 등록된 경기가 있으면 여기에 표시됩니다.</span>
+  </div>
+
+  <p class="text-muted small mb-3" th:if="${selectedDate != null}">
+    <span th:text="${#temporals.format(selectedDate, 'yyyy년 M월 d일')}">2025년 3월 14일</span> 경기
+    <span th:text="${games != null ? #lists.size(games) : 0}">0</span>건
+    <span class="ms-1" th:text="|(${selectedCategoryLabel})|">(리그 경기)</span>
+  </p>
+  <section class="games-cards" th:if="${games != null and !games.isEmpty()}">
+    <div class="game-card" th:each="game : ${games}" th:attr="onclick=|location.href='@{/games/{id}(id=${game.id})}'|">
+      <div class="game-card-actions" onclick="event.stopPropagation();">
+        <a th:href="@{/games/{id}/record/import(id=${game.id})}" class="game-card-add" title="기록 추가·업데이트 (이어서 넣기)"><span class="game-card-add-icon" aria-hidden="true">+</span></a>
+        <form th:action="@{/games/{id}/delete(id=${game.id})}" method="post" class="game-card-delete-form">
+          <input type="hidden" name="date" th:if="${selectedDate != null}" th:value="${#temporals.format(selectedDate, 'yyyy-MM-dd')}"/>
+          <button type="submit" class="game-card-delete" title="경기 삭제"
+                  onclick="if(!confirm('이 경기를 삭제할까요? 기록이 있으면 함께 삭제됩니다.')) event.preventDefault();">×</button>
+        </form>
+      </div>
+      <div class="game-card-header">
+        <span class="game-card-category"
+              th:classappend="${game.isExhibition()} ? ' game-card-category-exhibition' : ' game-card-category-league'"
+              th:text="${game.isExhibition()} ? '시범 경기' : '리그 경기'">리그 경기</span>
+        <span class="game-card-status" th:text="${game.status != null ? (game.status.name() == 'COMPLETED' ? '종료' : game.status.displayName) : '종료'}">종료</span>
+        <span class="game-card-header-extra">
+          <span class="game-card-dh" th:if="${game.isDoubleheader()}">DH</span>
+          <span th:if="${game.venue != null and !game.venue.isEmpty()}" th:text="${game.venue}">구장</span>
+        </span>
+      </div>
+      <div class="game-card-body">
+        <div class="game-card-matchup">
+          <div class="game-card-team"
+               th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.awayScore != null and game.homeScore != null and game.awayScore > game.homeScore} ? ' game-card-team-winner' : ''">
+            <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+            <span class="game-card-team-name" th:text="${game.awayTeam != null ? game.awayTeam.name : '-'}">원정</span>
+          </div>
+          <span class="game-card-score">
+            <span class="game-card-score-away"
+                  th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.awayScore != null and game.homeScore != null and game.awayScore > game.homeScore} ? ' game-card-score-winner' : ''"
+                  th:text="${game.awayScore != null ? game.awayScore : '-'}">0</span>
+            <span> - </span>
+            <span class="game-card-score-home"
+                  th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.homeScore != null and game.awayScore != null and game.homeScore > game.awayScore} ? ' game-card-score-winner' : ''"
+                  th:text="${game.homeScore != null ? game.homeScore : '-'}">0</span>
+          </span>
+          <div class="game-card-team"
+               th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.homeScore != null and game.awayScore != null and game.homeScore > game.awayScore} ? ' game-card-team-winner' : ''">
+            <span class="game-card-team-name" th:text="${game.homeTeam != null ? game.homeTeam.name : '-'}">홈</span>
+            <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+          </div>
+        </div>
+        <table class="game-card-rhe">
+          <thead>
+            <tr>
+              <th>팀명</th>
+              <th title="득점">R</th>
+              <th title="안타">H</th>
+              <th title="실책">E</th>
+              <th title="사사구 (볼넷+사구)">B</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td th:text="${game.awayTeam != null ? game.awayTeam.name : ''}">원정</td>
+              <td th:text="${game.awayScore != null ? game.awayScore : '-'}">0</td>
+              <td th:text="${game.awayHits != null ? game.awayHits : '-'}">-</td>
+              <td th:text="${game.awayErrors != null ? game.awayErrors : '-'}">-</td>
+              <td th:text="${displayAwayWalksByGameId != null and displayAwayWalksByGameId.containsKey(game.id) and displayAwayWalksByGameId.get(game.id) != null ? displayAwayWalksByGameId.get(game.id) : '-'}">-</td>
+            </tr>
+            <tr>
+              <td th:text="${game.homeTeam != null ? game.homeTeam.name : ''}">홈</td>
+              <td th:text="${game.homeScore != null ? game.homeScore : '-'}">0</td>
+              <td th:text="${game.homeHits != null ? game.homeHits : '-'}">-</td>
+              <td th:text="${game.homeErrors != null ? game.homeErrors : '-'}">-</td>
+              <td th:text="${displayHomeWalksByGameId != null and displayHomeWalksByGameId.containsKey(game.id) and displayHomeWalksByGameId.get(game.id) != null ? displayHomeWalksByGameId.get(game.id) : '-'}">-</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="game-card-pitchers" th:if="${(game.winningPitcherName != null and !game.winningPitcherName.isEmpty()) or (game.losingPitcherName != null and !game.losingPitcherName.isEmpty()) or (game.displaySavePitcherName != null and !game.displaySavePitcherName.isEmpty())}">
+          <span class="pitcher-inline-item" th:if="${game.winningPitcherName != null and !game.winningPitcherName.isEmpty()}"><span class="wl-label label-w">W</span><span th:text="${game.winningPitcherName}">승리</span></span>
+          <span class="pitcher-inline-item" th:if="${game.losingPitcherName != null and !game.losingPitcherName.isEmpty()}"><span class="wl-label label-l">L</span><span th:text="${game.losingPitcherName}">패전</span></span>
+          <span class="pitcher-inline-item" th:if="${game.displaySavePitcherName != null and !game.displaySavePitcherName.isEmpty()}"><span class="wl-label label-s">S</span><span th:text="${game.displaySavePitcherName}">세이브</span></span>
+        </div>
+      </div>
+      <div class="game-card-footer" onclick="event.stopPropagation();">
+        <a th:href="@{/games/{id}(id=${game.id})}">상세 (Box)</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card data-section" th:if="${games == null or games.isEmpty()}">
+    <div class="card-body text-center text-muted py-5">
+      <p class="mb-0">등록된 경기가 없습니다.</p>
+      <p class="small mb-0 mt-2">[경기 등록 (기록으로)] 또는 [간단 등록] 후 날짜 필터로 원하는 경기만 확인할 수 있습니다.</p>
+    </div>
+  </section>
+</th:block>
+</html>

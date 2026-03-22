@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout(${'팀 · ' + team.name}, ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title" th:text="${team.name}">팀명</h1>
+    <div class="d-flex gap-1 flex-wrap">
+      <a th:href="@{/teams/{id}/edit(id=${team.id})}" class="btn btn-secondary">수정</a>
+      <form th:action="@{/teams/{id}/delete(id=${team.id})}" method="post" style="display:inline;">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+      </form>
+      <a href="/teams" class="btn btn-secondary">목록</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="form-group mb-0">
+        <label>약칭</label>
+        <p th:text="${team.shortName} ?: '-'">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>소속 리그</label>
+        <p th:text="${team.league != null ? team.league.name : '-'}">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>창단년도</label>
+        <p th:text="${team.foundedYear} ?: '-'">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>홈구장</label>
+        <p th:text="${team.homeStadium} ?: '-'">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>등록일</label>
+        <p th:text="${#temporals.format(team.createdAt, 'yyyy-MM-dd HH:mm')}">-</p>
+      </div>
+    </div>
+  </div>
+
+  <section class="card data-section mt-3">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h2 class="t-h2 mb-0">선수</h2>
+          <p class="text-muted mb-0">임포트 시 자동으로 누적 저장됩니다.</p>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <a th:href="@{/players/new(teamId=${team.id}, position='PITCHER')}" class="btn btn-primary btn-sm">투수 추가</a>
+          <a th:href="@{/players/new(teamId=${team.id})}" class="btn btn-primary btn-sm">타자 추가</a>
+          <a th:href="@{/players(teamId=${team.id})}" class="btn btn-secondary btn-sm">선수 목록에서 보기</a>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>이름</th>
+            <th>포지션</th>
+            <th class="col-num">등번호</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:if="${pitchers != null and !#lists.isEmpty(pitchers)}">
+            <td colspan="5" class="text-muted"><strong>투수</strong> <span th:text="${'(' + #lists.size(pitchers) + '명)'}">(0명)</span></td>
+          </tr>
+          <tr th:each="p : ${pitchers}">
+            <td>투수</td>
+            <td><a th:href="@{/players/{id}(id=${p.id})}" th:text="${p.name}">이름</a></td>
+            <td th:text="${p.position != null ? p.position.displayName : '-'}">투수</td>
+            <td class="col-num" th:text="${p.backNumber} ?: '-'">-</td>
+            <td><a th:href="@{/players/{id}/edit(id=${p.id})}" class="btn btn-secondary btn-sm">수정</a></td>
+          </tr>
+          <tr th:if="${batters != null and !#lists.isEmpty(batters)}">
+            <td colspan="5" class="text-muted"><strong>타자</strong> <span th:text="${'(' + #lists.size(batters) + '명)'}">(0명)</span></td>
+          </tr>
+          <tr th:each="p : ${batters}">
+            <td>타자</td>
+            <td><a th:href="@{/players/{id}(id=${p.id})}" th:text="${p.name}">이름</a></td>
+            <td th:text="${p.position != null ? p.position.displayName : '-'}">-</td>
+            <td class="col-num" th:text="${p.backNumber} ?: '-'">-</td>
+            <td><a th:href="@{/players/{id}/edit(id=${p.id})}" class="btn btn-secondary btn-sm">수정</a></td>
+          </tr>
+          <tr th:if="${players == null or #lists.isEmpty(players)}">
+            <td colspan="5" class="text-muted">등록된 선수가 없습니다. (경기 기록을 가져오면 자동으로 누적됩니다.)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</th:block>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout(${'팀 (' + #lists.size(teams) + '개)'}, ~{::content})}">
+<th:block th:fragment="content">
+  <header class="page-header">
+    <div class="page-header-top">
+      <span class="page-section-label">Teams</span>
+      <h1 class="page-title t-h1">팀 <span class="page-count" th:text="${'(' + #lists.size(teams) + '개)'}">(0개)</span></h1>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <a href="/teams/new" class="btn btn-primary">팀 등록</a>
+    </div>
+  </header>
+  <div class="mlb-filter-bar">
+    <form action="/teams" method="get" class="d-flex gap-2 align-items-center flex-wrap">
+      <label for="league-filter" class="mlb-filter-label">리그</label>
+      <select id="league-filter" name="leagueId" class="form-control mlb-filter-select" onchange="this.form.submit()">
+        <option value="">전체 리그</option>
+        <option th:each="l : ${leagues}" th:value="${l.id}" th:text="${l.name}" th:selected="${selectedLeagueId != null && selectedLeagueId == l.id}">리그</option>
+      </select>
+    </form>
+    <a th:href="@{/teams}" class="mlb-filter-reset">초기화</a>
+  </div>
+  <section class="card data-section">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>팀명</th>
+            <th>약칭</th>
+            <th>리그</th>
+            <th class="col-num">창단</th>
+            <th>홈구장</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="team : ${teams}">
+            <td><a th:href="@{/teams/{id}(id=${team.id})}" th:text="${team.name}">팀명</a></td>
+            <td th:text="${team.shortName} ?: '-'">-</td>
+            <td th:text="${team.league != null ? team.league.name : '-'}">-</td>
+            <td class="col-num" th:text="${team.foundedYear} ?: '-'">-</td>
+            <td th:text="${team.homeStadium} ?: '-'">-</td>
+            <td>
+              <a th:href="@{/teams/{id}/edit(id=${team.id})}" class="btn btn-secondary btn-sm">수정</a>
+            </td>
+          </tr>
+          <tr th:if="${#lists.isEmpty(teams)}">
+            <td colspan="6" class="text-muted">등록된 팀이 없습니다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</th:block>
+</html>

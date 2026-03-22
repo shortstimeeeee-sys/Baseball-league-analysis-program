@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout('경기 기록 가공', ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title">경기 기록 가공</h1>
+    <a href="/games" class="btn btn-secondary">경기 목록</a>
+  </div>
+  <p class="page-lead">단계형으로 경기 완성: <strong>1) 날짜/시간 확정</strong> → <strong>2) 중계 텍스트 파싱</strong> → <strong>3) 경기 저장(진행중)</strong> → <strong>4) 기록 확인 후 완료 처리</strong>.</p>
+  <div class="alert alert-info mb-3" style="font-size: 0.9rem;">
+    <strong>이닝 인식 방법</strong><br>
+    텍스트에 <code>1회초 LG 공격</code>, <code>1회말 한화 공격</code>, <code>2회초 LG 공격</code>처럼 <strong>「N회초/말 + 팀명 + 공격」</strong> 줄이 나올 때마다, 그 다음에 오는 타석들이 해당 이닝으로 들어갑니다.<br>
+    <strong>1회초 이후 기록</strong>: 1회말·2회초·2회말… 도 넣으려면, 위 형식의 줄을 각 이닝마다 포함한 <strong>전체 중계문을 한 번에</strong> 붙여넣어 주세요. 가져오기할 때마다 기존 기록이 새 내용으로 통째로 바뀌므로, 1회초만 넣고 나중에 1회말만 추가하는 식으로는 이어 붙이기가 되지 않습니다.
+  </div>
+  <th:block th:if="${error}">
+    <div class="alert alert-danger" th:text="${error}"></div>
+  </th:block>
+  <form action="/games/import" method="post" class="card">
+    <div class="card-body">
+      <input type="hidden" name="format" value="text"/>
+      <h2 class="h5 mb-2 import-step-title">1단계 · 경기 날짜/시간 (파싱 전에 선택)</h2>
+      <fieldset class="border rounded p-3 mb-3 import-date-fieldset">
+        <legend class="float-none w-auto px-1 fs-6 mb-2">일정 · 더블헤더</legend>
+        <p class="text-muted small mb-2 import-date-help">아래에서 <strong>경기 날짜·시간</strong>을 정한 뒤, <strong>시범 경기</strong> 여부와 그날 같은 상대의 <strong>2차전(더블헤더)</strong> 여부를 체크하세요.</p>
+        <div class="row g-2 align-items-end import-date-row">
+          <div class="col-md-3 import-date-col">
+            <label for="gameDate">경기 날짜 <span class="required-mark">*</span></label>
+            <input id="gameDate" name="gameDate" type="date" class="form-control" required>
+          </div>
+          <div class="col-md-3 import-date-col">
+            <label for="gameTime">경기 시간 <span class="required-mark">*</span></label>
+            <input id="gameTime" name="gameTime" type="time" class="form-control" value="18:30">
+          </div>
+          <div class="col-md-12 mt-2 pt-1 border-top">
+            <label class="d-flex align-items-start gap-2 mb-2 import-option-label">
+              <input type="checkbox" name="exhibition" value="true" class="mt-1" id="importExhibition"/>
+              <span><strong>시범 경기</strong> — 체크하면 리그 공식 경기와 분리되어 저장/분류됩니다.</span>
+            </label>
+            <label class="d-flex align-items-start gap-2 mb-0 import-option-label">
+              <input type="checkbox" name="doubleheader" value="true" class="mt-1" id="importDoubleheader"/>
+              <span><strong>더블헤더 (2차전)</strong> — 위에서 고른 <strong>같은 날</strong>, 같은 팀 대결을 <strong>별도 경기</strong>로 등록합니다.</span>
+            </label>
+            <p class="text-muted small mb-0 ms-4 mt-1 import-option-desc">체크하지 않으면 같은 날·같은 매치업(같은 리그) 경기가 이미 있으면 <strong>기존 경기에 기록을 합칩니다</strong>.</p>
+          </div>
+        </div>
+      </fieldset>
+      <h2 class="h5 mb-2 import-step-title">2단계 · 경기 기록 파싱</h2>
+      <div class="form-group import-parse-group">
+        <label for="payload">경기 기록 (중계 텍스트 붙여넣기)</label>
+        <textarea id="payload" name="payload" class="form-control import-payload" rows="18" required
+                  placeholder="1회말 한화 공격&#10;문현빈 선수 페이지&#10;문현빈 : 중견수 플라이 아웃&#10;한화 승리 확률 40.7% (-1.1%p)&#10;..."></textarea>
+      </div>
+      <div class="import-submit-group">
+        <button type="submit" class="btn btn-primary import-submit-btn">3단계 · 가공 후 경기에 저장</button>
+        <p class="text-muted mt-2 mb-0 import-submit-help">저장 후 기록 확인 화면으로 이동합니다. 확인이 끝나면 [경기 완료 처리]를 눌러 카드/캘린더에서 최종 경기로 관리하세요.</p>
+      </div>
+    </div>
+  </form>
+</th:block>
+</html>

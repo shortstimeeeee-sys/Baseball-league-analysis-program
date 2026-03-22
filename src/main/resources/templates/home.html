@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout('대시보드', ~{::content})}">
+<th:block th:fragment="content">
+  <!-- 대시보드 v2: 메인 허브 (수정 반영 확인용 data-version) -->
+  <main class="site-dashboard" data-page-version="dashboard-hub-v2">
+  <section class="dashboard-hero">
+    <h1 class="dashboard-hero-title">Baseball Insight</h1>
+    <p class="dashboard-hero-desc">리그·팀·선수·경기 기록을 한곳에서 관리하고, 중계 텍스트·JSON으로 경기 기록을 가공할 수 있습니다.</p>
+  </section>
+
+  <!-- 등록 현황 요약 -->
+  <section class="stat-strip" aria-label="등록 현황">
+    <span class="stat-strip-label">등록 현황</span>
+    <a href="/leagues" class="stat-strip-item"><span class="stat-strip-name">리그</span><span class="stat-strip-num t-num" th:text="${leagueCount}">0</span></a>
+    <span class="stat-strip-dot" aria-hidden="true">·</span>
+    <a href="/teams" class="stat-strip-item"><span class="stat-strip-name">팀</span><span class="stat-strip-num t-num" th:text="${teamCount}">0</span></a>
+    <span class="stat-strip-dot">·</span>
+    <a href="/players" class="stat-strip-item"><span class="stat-strip-name">선수</span><span class="stat-strip-num t-num" th:text="${playerCount}">0</span></a>
+    <span class="stat-strip-dot">·</span>
+    <a href="/games" class="stat-strip-item"><span class="stat-strip-name">경기</span><span class="stat-strip-num t-num" th:text="${gameCount}">0</span></a>
+  </section>
+
+  <!-- 주요 진입: 경기 기록 가공 → 파싱 전용 페이지 -->
+  <section class="dashboard-actions">
+    <h2 class="dashboard-section-title">주요 작업</h2>
+    <div class="dashboard-action-cards">
+      <a href="/games/import" class="dashboard-action-card dashboard-action-primary">
+        <span class="dashboard-action-label">경기 기록 가공</span>
+        <span class="dashboard-action-desc">중계 텍스트·JSON을 붙여 넣어 파싱하고, 정보를 확인한 뒤 저장하면 경기 페이지에 기록이 반영됩니다.</span>
+      </a>
+      <a href="/games" class="dashboard-action-card">
+        <span class="dashboard-action-label">경기 목록</span>
+        <span class="dashboard-action-desc">저장된 경기 스코어·기록을 확인합니다.</span>
+      </a>
+      <a href="/games/new" class="dashboard-action-card">
+        <span class="dashboard-action-label">경기 간단 등록</span>
+        <span class="dashboard-action-desc">팀·일시·스코어만 입력해 경기를 등록합니다.</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 빠른 링크 -->
+  <nav class="quick-links">
+    <a href="/leagues" class="quick-link">리그</a>
+    <a href="/teams" class="quick-link">팀</a>
+    <a href="/players" class="quick-link">선수</a>
+    <a href="/games" class="quick-link">경기 목록</a>
+  </nav>
+  </main>
+</th:block>
+</html>

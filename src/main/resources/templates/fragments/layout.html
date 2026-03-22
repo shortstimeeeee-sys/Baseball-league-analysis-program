@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!-- MLB 뉴스 페이지 구조: 네이비 헤더 · 섹션 바 · 왼쪽 사이드바 · 오른쪽 메인 -->
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:fragment="layout(pageTitle, mainContent)">
+<head>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title th:text="${pageTitle != null ? (pageTitle + ' | Baseball Insight') : 'Baseball Insight'}">Baseball Insight</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle fill='%23BF0D3E' cx='16' cy='16' r='14'/><circle fill='none' stroke='%23fff' stroke-width='2' cx='16' cy='16' r='6'/><path fill='%23fff' d='M16 4v4M16 24v4M4 16h4M24 16h4'/></svg>" type="image/svg+xml"/>
+  <link th:href="@{/css/common.css(v=49)}" rel="stylesheet"/>
+  <th:block th:replace="~{fragments/head :: head}"></th:block>
+</head>
+<body>
+  <div class="blayout">
+    <header class="site-header" role="banner">
+      <div class="site-header-inner">
+        <a href="/" class="site-logo">
+          <span class="site-logo-icon" aria-hidden="true">◈</span>
+          Baseball Insight
+        </a>
+        <nav class="top-nav" role="navigation" aria-label="메인 메뉴">
+          <a href="/" class="top-nav-link" th:classappend="${requestURI != null and requestURI == '/'} ? 'active'">대시보드</a>
+          <a href="/leagues" class="top-nav-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/leagues')} ? 'active'">리그</a>
+          <a href="/teams" class="top-nav-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/teams')} ? 'active'">팀</a>
+          <a href="/players" class="top-nav-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/players')} ? 'active'">선수</a>
+          <a href="/games" class="top-nav-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/games')} ? 'active'">경기</a>
+        </nav>
+        <span class="site-tagline" th:text="${tagline != null ? tagline : '경기 기록 · 스코어 · 분석'}">경기 기록 · 스코어 · 분석</span>
+      </div>
+    </header>
+
+    <div class="breadcrumb-bar">
+      <div class="breadcrumb-inner">
+        <a href="/" class="breadcrumb-home">홈</a>
+        <span class="breadcrumb-sep">›</span>
+        <h1 class="breadcrumb-current" th:text="${pageTitle != null && !#strings.isEmpty(pageTitle) ? pageTitle : '대시보드'}">대시보드</h1>
+      </div>
+      <div class="breadcrumb-context" aria-hidden="true">
+        <span>Baseball Insight</span>
+        <span class="breadcrumb-arrow" aria-hidden="true">▼</span>
+      </div>
+    </div>
+
+    <div class="site-body">
+      <aside class="site-sidebar" role="complementary" aria-label="사이드 메뉴">
+        <nav class="sidebar-nav">
+          <h2 class="sidebar-title">메뉴</h2>
+          <ul class="sidebar-list">
+            <li><a href="/" class="sidebar-link" th:classappend="${requestURI != null and requestURI == '/'} ? 'active'">대시보드</a></li>
+            <li><a href="/leagues" class="sidebar-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/leagues')} ? 'active'">리그</a></li>
+            <li><a href="/teams" class="sidebar-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/teams')} ? 'active'">팀</a></li>
+            <li><a href="/players" class="sidebar-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/players')} ? 'active'">선수</a></li>
+            <li><a href="/games" class="sidebar-link" th:classappend="${requestURI != null and #strings.startsWith(requestURI, '/games')} ? 'active'">경기</a></li>
+          </ul>
+        </nav>
+        <div class="sidebar-quick">
+          <h3 class="sidebar-quick-title">빠른 작업</h3>
+          <ul class="sidebar-list">
+            <li><a href="/games/import" class="sidebar-link">경기 기록 가공</a></li>
+            <li><a href="/games/new" class="sidebar-link">경기 간단 등록</a></li>
+            <li><a href="/leagues/new" class="sidebar-link">리그 등록</a></li>
+            <li><a href="/teams/new" class="sidebar-link">팀 등록</a></li>
+            <li><a href="/players/new" class="sidebar-link">선수 등록</a></li>
+          </ul>
+        </div>
+      </aside>
+      <main class="site-main" role="main">
+        <div class="site-main-inner">
+          <th:block th:if="${message}">
+            <div class="alert alert-success" th:text="${message}"></div>
+          </th:block>
+          <th:block th:replace="${mainContent}"></th:block>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

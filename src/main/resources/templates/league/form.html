@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout(${leagueId != null} ? '리그 수정' : '리그 등록', ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title" th:text="${leagueId != null} ? '리그 수정' : '리그 등록'">리그 등록</h1>
+    <a href="/leagues" class="btn btn-secondary">목록</a>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form th:action="${leagueId != null} ? @{/leagues/{id}(id=${leagueId})} : @{/leagues}" th:object="${league}" method="post">
+        <div class="form-group">
+          <label for="name">리그명 *</label>
+          <input type="text" id="name" class="form-control" th:field="*{name}" placeholder="예: KBO 리그" required/>
+        </div>
+        <div class="form-group">
+          <label for="country">국가</label>
+          <input type="text" id="country" class="form-control" th:field="*{country}" placeholder="예: 대한민국"/>
+        </div>
+        <div class="form-group">
+          <label for="description">설명</label>
+          <textarea id="description" class="form-control" th:field="*{description}" rows="3" placeholder="리그 소개"></textarea>
+        </div>
+        <div class="d-flex gap-1">
+          <button type="submit" class="btn btn-primary" th:text="${leagueId != null} ? '수정' : '등록'">등록</button>
+          <a href="/leagues" class="btn btn-secondary">취소</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</th:block>
+</html>

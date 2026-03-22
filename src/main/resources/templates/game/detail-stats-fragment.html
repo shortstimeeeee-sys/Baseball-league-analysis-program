@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<body>
+  <div th:fragment="statsFragment" id="stats-fragment-content">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h3 class="h5 mb-2">
+          <span th:text="${game.awayTeam.name}">한화</span>
+          <span class="mx-1">VS</span>
+          <span th:text="${game.homeTeam.name}">롯데</span>
+        </h3>
+        <h4 class="h6 mb-2">투수 기록 비교</h4>
+        <table class="data-table stats-compare-table mb-3">
+          <colgroup>
+            <col class="stats-col-side"/>
+            <col class="stats-col-mid"/>
+            <col class="stats-col-side"/>
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="stats-col-team">
+                <span class="stats-head-inner">
+                  <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+                  <span th:text="${game.awayTeam.name}">한화</span>
+                </span>
+              </th>
+              <th class="stats-col-label"><span class="stats-label-inner">구분</span></th>
+              <th class="stats-col-team">
+                <span class="stats-head-inner">
+                  <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+                  <span th:text="${game.homeTeam.name}">롯데</span>
+                </span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div th:text="${winningAwayName}">-</div>
+                <div class="text-muted small" th:if="${winningAwayName != '-'}" th:text="${winningAwaySummary}">-</div>
+              </td>
+              <td>승리투수</td>
+              <td>
+                <div th:text="${winningHomeName}">-</div>
+                <div class="text-muted small" th:if="${winningHomeName != '-'}" th:text="${winningHomeSummary}">-</div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div th:text="${losingAwayName}">-</div>
+                <div class="text-muted small" th:if="${losingAwayName != '-'}" th:text="${losingAwaySummary}">-</div>
+              </td>
+              <td>패전투수</td>
+              <td>
+                <div th:text="${losingHomeName}">-</div>
+                <div class="text-muted small" th:if="${losingHomeName != '-'}" th:text="${losingHomeSummary}">-</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <h4 class="h6 mb-2">양팀 기록 비교</h4>
+        <table class="data-table stats-compare-table">
+          <colgroup>
+            <col class="stats-col-side"/>
+            <col class="stats-col-mid"/>
+            <col class="stats-col-side"/>
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="stats-col-team">
+                <span class="stats-head-inner">
+                  <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+                  <span th:text="${game.awayTeam.name}">한화</span>
+                </span>
+              </th>
+              <th class="stats-col-label"><span class="stats-label-inner">구분</span></th>
+              <th class="stats-col-team">
+                <span class="stats-head-inner">
+                  <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+                  <span th:text="${game.homeTeam.name}">롯데</span>
+                </span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="row : ${teamCompareRows}">
+              <td>
+                <div class="stats-bar-side stats-bar-side-away">
+                  <span class="stats-bar-value" th:text="${row.awayValue}">0</span>
+                  <div class="stats-bar-track">
+                    <div class="stats-bar-fill stats-bar-fill-away"
+                         th:style="|width:${row.maxValue > 0 ? (row.awayValue * 100.0 / row.maxValue) : 0}%;|"></div>
+                  </div>
+                </div>
+              </td>
+              <td th:text="${row.label}">안타</td>
+              <td>
+                <div class="stats-bar-side stats-bar-side-home">
+                  <div class="stats-bar-track">
+                    <div class="stats-bar-fill stats-bar-fill-home"
+                         th:style="|width:${row.maxValue > 0 ? (row.homeValue * 100.0 / row.maxValue) : 0}%;|"></div>
+                  </div>
+                  <span class="stats-bar-value" th:text="${row.homeValue}">0</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h4 class="h6 mb-2">경기 기록</h4>
+        <table class="data-table stats-compare-table">
+          <thead>
+            <tr>
+              <th>
+                <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+                <span th:text="${game.awayTeam.name}">한화</span>
+              </th>
+              <th>구분</th>
+              <th>
+                <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+                <span th:text="${game.homeTeam.name}">롯데</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="row : ${eventRows}">
+              <td>
+                <div th:if="${row.awayCount == 0 and (row.awayNames == null or row.awayNames.isBlank() or row.awayNames == '-')}">-</div>
+                <div th:unless="${row.awayCount == 0 and (row.awayNames == null or row.awayNames.isBlank() or row.awayNames == '-')}">
+                  <div th:text="${row.awayCount}">0</div>
+                  <div class="text-muted small stats-event-names" th:text="${row.awayNames != null and !row.awayNames.isBlank() ? row.awayNames : '-'}">-</div>
+                </div>
+              </td>
+              <td th:text="${row.label}">결승타</td>
+              <td>
+                <div th:if="${row.homeCount == 0 and (row.homeNames == null or row.homeNames.isBlank() or row.homeNames == '-')}">-</div>
+                <div th:unless="${row.homeCount == 0 and (row.homeNames == null or row.homeNames.isBlank() or row.homeNames == '-')}">
+                  <div th:text="${row.homeCount}">0</div>
+                  <div class="text-muted small stats-event-names" th:text="${row.homeNames != null and !row.homeNames.isBlank() ? row.homeNames : '-'}">-</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mt-3 stats-team-detail-card">
+      <div class="card-body">
+        <h4 class="h6 mb-2">팀별 세부 기록</h4>
+        <div class="stats-detail-section-head">
+          <span class="stats-detail-section-chip stats-detail-section-chip-batter">타자 기록</span>
+        </div>
+        <div class="stats-detail-batter-grid">
+          <div class="stats-detail-team-block">
+            <div class="stats-detail-team-title">
+              <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+              <span th:text="${game.awayTeam.name}">한화</span>
+              <button type="button" class="stats-view-toggle-single" data-view="summary" aria-label="타자 기록 보기 전환">타석기록판</button>
+            </div>
+            <div class="stats-detail-table-wrap">
+              <table class="data-table stats-detail-table stats-detail-batter-table stats-batter-view stats-batter-view-summary">
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>타자명</th>
+                    <th>타수</th>
+                    <th>득점</th>
+                    <th>안타</th>
+                    <th>타점</th>
+                    <th>홈런</th>
+                    <th>볼넷</th>
+                    <th>삼진</th>
+                    <th>도루</th>
+                    <th>타율</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="row : ${awayBatterDetails}">
+                    <td th:text="${row.role}">1번타자</td>
+                    <td th:text="${row.name}">선수</td>
+                    <td th:text="${row.atBats}">0</td>
+                    <td th:text="${row.runs}">0</td>
+                    <td th:text="${row.hits}">0</td>
+                    <td th:text="${row.rbis}">0</td>
+                    <td th:text="${row.homeRuns}">0</td>
+                    <td th:text="${row.walks}">0</td>
+                    <td th:text="${row.strikeouts}">0</td>
+                    <td th:text="${row.steals}">0</td>
+                    <td th:text="${row.avg}">.000</td>
+                  </tr>
+                  <tr th:if="${awayBatterDetails == null or awayBatterDetails.isEmpty()}">
+                    <td colspan="11" class="col-center text-muted">타자 기록 없음</td>
+                  </tr>
+                  <tr th:if="${awayBatterTotal != null}" class="stats-total-row">
+                    <td colspan="2" th:text="${awayBatterTotal.role}">합계</td>
+                    <td th:text="${awayBatterTotal.atBats}">0</td>
+                    <td th:text="${awayBatterTotal.runs}">0</td>
+                    <td th:text="${awayBatterTotal.hits}">0</td>
+                    <td th:text="${awayBatterTotal.rbis}">0</td>
+                    <td th:text="${awayBatterTotal.homeRuns}">0</td>
+                    <td th:text="${awayBatterTotal.walks}">0</td>
+                    <td th:text="${awayBatterTotal.strikeouts}">0</td>
+                    <td th:text="${awayBatterTotal.steals}">0</td>
+                    <td th:text="${awayBatterTotal.avg}">.000</td>
+                  </tr>
+                </tbody>
+              </table>
+              <table class="data-table stats-detail-table stats-batter-board-table stats-batter-view stats-batter-view-board" style="display:none;">
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>선수명</th>
+                    <th th:each="i : ${#numbers.sequence(1, 9)}" th:text="${i}">1</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="row : ${awayBatterBoards}">
+                    <td th:text="${row.role}">대타</td>
+                    <td th:text="${row.name}">선수</td>
+                    <td th:each="i : ${#numbers.sequence(1, 9)}" th:text="${row.inningMarks[i]}">-</td>
+                  </tr>
+                  <tr th:if="${awayBatterBoards == null or awayBatterBoards.isEmpty()}">
+                    <td colspan="11" class="col-center text-muted">타석 기록 없음</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="stats-detail-team-block">
+            <div class="stats-detail-team-title">
+              <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+              <span th:text="${game.homeTeam.name}">롯데</span>
+              <button type="button" class="stats-view-toggle-single" data-view="summary" aria-label="타자 기록 보기 전환">타석기록판</button>
+            </div>
+            <div class="stats-detail-table-wrap">
+              <table class="data-table stats-detail-table stats-detail-batter-table stats-batter-view stats-batter-view-summary">
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>타자명</th>
+                    <th>타수</th>
+                    <th>득점</th>
+                    <th>안타</th>
+                    <th>타점</th>
+                    <th>홈런</th>
+                    <th>볼넷</th>
+                    <th>삼진</th>
+                    <th>도루</th>
+                    <th>타율</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="row : ${homeBatterDetails}">
+                    <td th:text="${row.role}">1번타자</td>
+                    <td th:text="${row.name}">선수</td>
+                    <td th:text="${row.atBats}">0</td>
+                    <td th:text="${row.runs}">0</td>
+                    <td th:text="${row.hits}">0</td>
+                    <td th:text="${row.rbis}">0</td>
+                    <td th:text="${row.homeRuns}">0</td>
+                    <td th:text="${row.walks}">0</td>
+                    <td th:text="${row.strikeouts}">0</td>
+                    <td th:text="${row.steals}">0</td>
+                    <td th:text="${row.avg}">.000</td>
+                  </tr>
+                  <tr th:if="${homeBatterDetails == null or homeBatterDetails.isEmpty()}">
+                    <td colspan="11" class="col-center text-muted">타자 기록 없음</td>
+                  </tr>
+                  <tr th:if="${homeBatterTotal != null}" class="stats-total-row">
+                    <td colspan="2" th:text="${homeBatterTotal.role}">합계</td>
+                    <td th:text="${homeBatterTotal.atBats}">0</td>
+                    <td th:text="${homeBatterTotal.runs}">0</td>
+                    <td th:text="${homeBatterTotal.hits}">0</td>
+                    <td th:text="${homeBatterTotal.rbis}">0</td>
+                    <td th:text="${homeBatterTotal.homeRuns}">0</td>
+                    <td th:text="${homeBatterTotal.walks}">0</td>
+                    <td th:text="${homeBatterTotal.strikeouts}">0</td>
+                    <td th:text="${homeBatterTotal.steals}">0</td>
+                    <td th:text="${homeBatterTotal.avg}">.000</td>
+                  </tr>
+                </tbody>
+              </table>
+              <table class="data-table stats-detail-table stats-batter-board-table stats-batter-view stats-batter-view-board" style="display:none;">
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>선수명</th>
+                    <th th:each="i : ${#numbers.sequence(1, 9)}" th:text="${i}">1</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="row : ${homeBatterBoards}">
+                    <td th:text="${row.role}">대타</td>
+                    <td th:text="${row.name}">선수</td>
+                    <td th:each="i : ${#numbers.sequence(1, 9)}" th:text="${row.inningMarks[i]}">-</td>
+                  </tr>
+                  <tr th:if="${homeBatterBoards == null or homeBatterBoards.isEmpty()}">
+                    <td colspan="11" class="col-center text-muted">타석 기록 없음</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-detail-section-head stats-detail-section-head-pitcher">
+          <span class="stats-detail-section-chip stats-detail-section-chip-pitcher">투수 기록</span>
+        </div>
+        <div class="stats-detail-pitcher-grid mt-3">
+          <div class="stats-detail-team-block">
+            <div class="stats-detail-team-title">
+              <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+              <span th:text="${game.awayTeam.name}">한화</span>
+              <span class="text-muted">투수 기록</span>
+            </div>
+            <div class="stats-detail-table-wrap">
+              <table class="data-table stats-detail-table">
+                <thead>
+                  <tr>
+                    <th>투수명</th>
+                    <th>이닝</th>
+                    <th>피안타</th>
+                    <th>실점</th>
+                    <th>자책</th>
+                    <th>4사구</th>
+                    <th>삼진</th>
+                    <th>피홈런</th>
+                    <th>타자</th>
+                    <th>타수</th>
+                    <th>투구수</th>
+                    <th>승</th>
+                    <th>패</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="row : ${awayPitcherDetails}">
+                    <td th:text="${row.name}">투수</td>
+                    <td th:text="${row.innings}">0.0</td>
+                    <td th:text="${row.hitsAllowed}">0</td>
+                    <td th:text="${row.runsAllowed}">0</td>
+                    <td th:text="${row.earnedRuns}">0</td>
+                    <td th:text="${row.walks}">0</td>
+                    <td th:text="${row.strikeouts}">0</td>
+                    <td th:text="${row.homeRunsAllowed}">0</td>
+                    <td th:text="${row.battersFaced}">0</td>
+                    <td th:text="${row.atBats}">0</td>
+                    <td th:text="${row.pitches}">0</td>
+                    <td th:text="${row.wins}">0</td>
+                    <td th:text="${row.losses}">0</td>
+                  </tr>
+                  <tr th:if="${awayPitcherDetails == null or awayPitcherDetails.isEmpty()}">
+                    <td colspan="14" class="col-center text-muted">투수 기록 없음</td>
+                  </tr>
+                  <tr th:if="${awayPitcherTotal != null}" class="stats-total-row">
+                    <td th:text="${awayPitcherTotal.name}">합계</td>
+                    <td th:text="${awayPitcherTotal.innings}">0.0</td>
+                    <td th:text="${awayPitcherTotal.hitsAllowed}">0</td>
+                    <td th:text="${awayPitcherTotal.runsAllowed}">0</td>
+                    <td th:text="${awayPitcherTotal.earnedRuns}">0</td>
+                    <td th:text="${awayPitcherTotal.walks}">0</td>
+                    <td th:text="${awayPitcherTotal.strikeouts}">0</td>
+                    <td th:text="${awayPitcherTotal.homeRunsAllowed}">0</td>
+                    <td th:text="${awayPitcherTotal.battersFaced}">0</td>
+                    <td th:text="${awayPitcherTotal.atBats}">0</td>
+                    <td th:text="${awayPitcherTotal.pitches}">0</td>
+                    <td th:text="${awayPitcherTotal.wins}">0</td>
+                    <td th:text="${awayPitcherTotal.losses}">0</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="stats-detail-team-block">
+            <div class="stats-detail-team-title">
+              <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+              <span th:text="${game.homeTeam.name}">롯데</span>
+              <span class="text-muted">투수 기록</span>
+            </div>
+            <div class="stats-detail-table-wrap">
+              <table class="data-table stats-detail-table">
+                <thead>
+                  <tr>
+                    <th>투수명</th>
+                    <th>이닝</th>
+                    <th>피안타</th>
+                    <th>실점</th>
+                    <th>자책</th>
+                    <th>4사구</th>
+                    <th>삼진</th>
+                    <th>피홈런</th>
+                    <th>타자</th>
+                    <th>타수</th>
+                    <th>투구수</th>
+                    <th>승</th>
+                    <th>패</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="row : ${homePitcherDetails}">
+                    <td th:text="${row.name}">투수</td>
+                    <td th:text="${row.innings}">0.0</td>
+                    <td th:text="${row.hitsAllowed}">0</td>
+                    <td th:text="${row.runsAllowed}">0</td>
+                    <td th:text="${row.earnedRuns}">0</td>
+                    <td th:text="${row.walks}">0</td>
+                    <td th:text="${row.strikeouts}">0</td>
+                    <td th:text="${row.homeRunsAllowed}">0</td>
+                    <td th:text="${row.battersFaced}">0</td>
+                    <td th:text="${row.atBats}">0</td>
+                    <td th:text="${row.pitches}">0</td>
+                    <td th:text="${row.wins}">0</td>
+                    <td th:text="${row.losses}">0</td>
+                  </tr>
+                  <tr th:if="${homePitcherDetails == null or homePitcherDetails.isEmpty()}">
+                    <td colspan="14" class="col-center text-muted">투수 기록 없음</td>
+                  </tr>
+                  <tr th:if="${homePitcherTotal != null}" class="stats-total-row">
+                    <td th:text="${homePitcherTotal.name}">합계</td>
+                    <td th:text="${homePitcherTotal.innings}">0.0</td>
+                    <td th:text="${homePitcherTotal.hitsAllowed}">0</td>
+                    <td th:text="${homePitcherTotal.runsAllowed}">0</td>
+                    <td th:text="${homePitcherTotal.earnedRuns}">0</td>
+                    <td th:text="${homePitcherTotal.walks}">0</td>
+                    <td th:text="${homePitcherTotal.strikeouts}">0</td>
+                    <td th:text="${homePitcherTotal.homeRunsAllowed}">0</td>
+                    <td th:text="${homePitcherTotal.battersFaced}">0</td>
+                    <td th:text="${homePitcherTotal.atBats}">0</td>
+                    <td th:text="${homePitcherTotal.pitches}">0</td>
+                    <td th:text="${homePitcherTotal.wins}">0</td>
+                    <td th:text="${homePitcherTotal.losses}">0</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

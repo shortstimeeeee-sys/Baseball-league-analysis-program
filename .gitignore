@@ -1,0 +1,35 @@
+# Build
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.jar
+*.war
+*.ear
+*.class
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# Data (H2 file DB - 백업용으로 버전 관리할 경우 아래 줄 제거)
+/data/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local scratch / debug HTML
+tmp_*.html
+
+# Env
+.env
+.env.local

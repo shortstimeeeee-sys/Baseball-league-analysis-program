@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout(${playerId != null} ? '선수 수정' : '선수 등록', ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title" th:text="${playerId != null} ? '선수 수정' : '선수 등록'">선수 등록</h1>
+    <a href="/players" class="btn btn-secondary">목록</a>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form th:action="${playerId != null} ? @{/players/{id}(id=${playerId})} : @{/players}" th:object="${player}" method="post">
+        <div class="form-group">
+          <label for="name">이름 *</label>
+          <input type="text" id="name" class="form-control" th:field="*{name}" required/>
+        </div>
+        <div class="form-group">
+          <label for="teamId">소속팀</label>
+          <select id="teamId" class="form-control" th:field="*{teamId}">
+            <option value="">선택 안 함</option>
+            <option th:each="t : ${teams}" th:value="${t.id}" th:text="${t.name}">팀</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="position">포지션</label>
+          <select id="position" class="form-control" th:field="*{position}">
+            <option value="">선택 안 함</option>
+            <option th:each="p : ${positions}" th:value="${p.name()}" th:text="${p.displayName}">포지션</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="backNumber">등번호</label>
+          <input type="number" id="backNumber" class="form-control" th:field="*{backNumber}" min="0" max="999"/>
+        </div>
+        <div class="form-group">
+          <label for="birthDate">생년월일</label>
+          <input type="date" id="birthDate" class="form-control" th:field="*{birthDate}"/>
+        </div>
+        <div class="form-group">
+          <label for="nationality">국적</label>
+          <input type="text" id="nationality" class="form-control" th:field="*{nationality}" placeholder="예: 대한민국"/>
+        </div>
+        <div class="d-flex gap-1">
+          <button type="submit" class="btn btn-primary" th:text="${playerId != null} ? '수정' : '등록'">등록</button>
+          <a href="/players" class="btn btn-secondary">취소</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</th:block>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout(${'선수 · ' + player.name}, ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title" th:text="${player.name}">선수명</h1>
+    <div class="d-flex gap-1 flex-wrap">
+      <a th:href="@{/players/{id}/edit(id=${player.id})}" class="btn btn-secondary">수정</a>
+      <form th:action="@{/players/{id}/delete(id=${player.id})}" method="post" style="display:inline;">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+      </form>
+      <a href="/players" class="btn btn-secondary">목록</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="form-group mb-0">
+        <label>소속팀</label>
+        <p th:text="${player.team != null ? player.team.name : '-'}">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>포지션</label>
+        <p th:text="${player.position != null ? player.position.displayName : '-'}">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>등번호</label>
+        <p th:text="${player.backNumber} ?: '-'">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>생년월일</label>
+        <p th:text="${player.birthDate != null ? #temporals.format(player.birthDate, 'yyyy-MM-dd') : '-'}">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>국적</label>
+        <p th:text="${player.nationality} ?: '-'">-</p>
+      </div>
+      <div class="form-group mb-0">
+        <label>등록일</label>
+        <p th:text="${#temporals.format(player.createdAt, 'yyyy-MM-dd HH:mm')}">-</p>
+      </div>
+    </div>
+  </div>
+</th:block>
+</html>

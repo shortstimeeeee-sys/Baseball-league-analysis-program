@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout('경기 상세', ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title" th:text="${game.awayTeam.name + ' vs ' + game.homeTeam.name}">경기 상세</h1>
+    <div class="d-flex gap-1 flex-wrap">
+      <a th:href="@{/games/{id}/record/import(id=${game.id})}" class="btn btn-primary">기록 가져오기</a>
+      <a th:href="@{/games/{id}/edit(id=${game.id})}" class="btn btn-secondary">수정</a>
+      <form th:action="@{/games/{id}/delete(id=${game.id})}" method="post" style="display:inline;">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+      </form>
+      <a href="/games" class="btn btn-secondary">목록</a>
+    </div>
+  </div>
+
+  <!-- 스코어보드·기록: 경기 상세와 기록 가져오기 페이지에서 공통 사용 -->
+  <th:block th:replace="~{game/detail :: scoreboard-and-records}"></th:block>
+</th:block>
+
+<th:block th:fragment="scoreboard-only">
+  <div class="scoreboard-datetime-bar mb-2" th:if="${game != null}">
+    <div class="scoreboard-datetime-inner">
+      <div class="scoreboard-datetime-label">경기 일시</div>
+      <div class="scoreboard-datetime-line">
+        <th:block th:if="${game.gameDateTime != null}">
+          <strong class="scoreboard-datetime-date" th:text="${#temporals.format(game.gameDateTime, 'yyyy년 M월 d일 (E)')}">2026년 3월 21일 (토)</strong><span class="scoreboard-datetime-comma">, </span><strong class="scoreboard-datetime-clock" th:text="${#temporals.format(game.gameDateTime, 'HH:mm')}">14:55</strong>
+        </th:block>
+        <span th:if="${game.gameDateTime == null}" class="text-muted">날짜 미지정</span>
+        <th:block th:if="${game.awayTeam != null and game.homeTeam != null}">
+          <span class="scoreboard-datetime-slash"> / </span>
+          <span class="scoreboard-datetime-matchup">
+            <span th:text="${game.awayTeam.name}">한화</span>
+            <span class="scoreboard-datetime-vs">VS</span>
+            <span th:text="${game.homeTeam.name}">롯데</span>
+          </span>
+        </th:block>
+        <span th:if="${game.venue != null and !game.venue.isEmpty()}">
+          <span class="scoreboard-datetime-sep"> · </span>
+          <span class="scoreboard-datetime-venue" th:text="${game.venue}">구장</span>
+        </span>
+      </div>
+    </div>
+  </div>
+  <div class="score-summary-card mb-3">
+    <div class="score-summary-header">
+      <div class="score-summary-team score-summary-away"
+           th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.awayScore != null and game.homeScore != null ? (game.awayScore > game.homeScore ? ' score-summary-team-winner' : (game.awayScore < game.homeScore ? ' score-summary-team-loser' : '')) : ''}">
+        <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+        <span class="score-summary-team-name" th:text="${game.awayTeam.name}">원정</span>
+        <span class="score-summary-team-record" aria-hidden="true"></span>
+      </div>
+      <span class="score-summary-score score-summary-score-away"
+            th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.awayScore != null and game.homeScore != null and game.awayScore > game.homeScore ? ' score-summary-score-winner' : ''}"
+            th:text="${game.awayScore != null ? game.awayScore : 0}">0</span>
+      <span class="score-summary-game-state" th:text="${scoreboardSituationLabel != null ? scoreboardSituationLabel : (game.status != null ? game.status.displayName : '')}">5회초</span>
+      <span class="score-summary-score score-summary-score-home"
+            th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.homeScore != null and game.awayScore != null and game.homeScore > game.awayScore ? ' score-summary-score-winner' : ''}"
+            th:text="${game.homeScore != null ? game.homeScore : 0}">0</span>
+      <div class="score-summary-team score-summary-home"
+           th:classappend="${game.status != null and game.status.name() == 'COMPLETED' and game.homeScore != null and game.awayScore != null ? (game.homeScore > game.awayScore ? ' score-summary-team-winner' : (game.homeScore < game.awayScore ? ' score-summary-team-loser' : '')) : ''}">
+        <span class="score-summary-team-name" th:text="${game.homeTeam.name}">한화</span>
+        <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+        <span class="score-summary-team-record" aria-hidden="true"></span>
+      </div>
+    </div>
+    <div class="score-summary-grid-wrap">
+      <table class="score-summary-table">
+        <colgroup>
+          <col class="score-col-team"/>
+          <col th:each="i : ${#numbers.sequence(1, 9)}" class="score-col-inning"/>
+          <col th:each="i : ${#numbers.sequence(1, 4)}" class="score-col-stat"/>
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="score-summary-cell-team">팀명</th>
+            <th th:each="i : ${#numbers.sequence(1, 9)}" th:text="${i}" class="score-summary-inning">1</th>
+            <th class="score-summary-rhe" title="득점">R</th>
+            <th class="score-summary-rhe" title="안타">H</th>
+            <th class="score-summary-rhe" title="실책">E</th>
+            <th class="score-summary-rhe" title="사사구 (볼넷+사구)">B</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="score-summary-row-away">
+            <td class="score-summary-cell-team">
+              <span class="score-summary-cell-team-inner">
+                <span class="score-summary-team-badge score-summary-badge-away">어웨이</span>
+                <span th:text="${game.awayTeam.name}">원정</span>
+              </span>
+            </td>
+            <td th:each="i : ${#numbers.sequence(1, 9)}" th:with="is=${inningScoreByIndex != null and i < inningScoreByIndex.size() ? inningScoreByIndex.get(i) : null}"
+                th:text="${is != null ? is.awayRunsInInning : 0}" class="score-summary-inning"
+                th:classappend="${(is != null and is.awayRunsInInning != null and is.awayRunsInInning > 0) ? 'score-cell-filled' : ''}">0</td>
+            <td class="score-summary-total" th:text="${game.awayScore != null ? game.awayScore : ''}" th:classappend="${(game.awayScore != null and game.awayScore > 0) ? 'score-cell-filled' : ''}">0</td>
+            <td class="score-summary-total" th:text="${game.awayHits != null ? game.awayHits : ''}" th:classappend="${(game.awayHits != null and game.awayHits > 0) ? 'score-cell-filled' : ''}"></td>
+            <td class="score-summary-total" th:text="${displayAwayErrors != null ? displayAwayErrors : ''}" th:classappend="${(displayAwayErrors != null and displayAwayErrors > 0) ? 'score-cell-filled' : ''}"></td>
+            <td class="score-summary-total" th:text="${displayAwayWalks != null ? displayAwayWalks : ''}" th:classappend="${(displayAwayWalks != null and displayAwayWalks > 0) ? 'score-cell-filled' : ''}"></td>
+          </tr>
+          <tr class="score-summary-row-home">
+            <td class="score-summary-cell-team">
+              <span class="score-summary-cell-team-inner">
+                <span class="score-summary-team-badge score-summary-badge-home">홈</span>
+                <span th:text="${game.homeTeam.name}">한화</span>
+              </span>
+            </td>
+            <td th:each="i : ${#numbers.sequence(1, 9)}" th:with="is=${inningScoreByIndex != null and i < inningScoreByIndex.size() ? inningScoreByIndex.get(i) : null}, isLast=${i == 9}, homeLeading=${game.status != null and game.status.name() == 'COMPLETED' and game.homeScore != null and game.awayScore != null and game.homeScore > game.awayScore}, hasRun=${(is != null and is.homeRunsInInning != null and is.homeRunsInInning > 0) or (isLast and homeLeading)}"
+                th:text="${isLast and homeLeading ? 'x' : (is != null ? is.homeRunsInInning : 0)}" class="score-summary-inning"
+                th:classappend="${hasRun ? 'score-cell-filled' : ''}">0</td>
+            <td class="score-summary-total" th:text="${game.homeScore != null ? game.homeScore : ''}" th:classappend="${(game.homeScore != null and game.homeScore > 0) ? 'score-cell-filled' : ''}">0</td>
+            <td class="score-summary-total" th:text="${game.homeHits != null ? game.homeHits : ''}" th:classappend="${(game.homeHits != null and game.homeHits > 0) ? 'score-cell-filled' : ''}"></td>
+            <td class="score-summary-total" th:text="${displayHomeErrors != null ? displayHomeErrors : ''}" th:classappend="${(displayHomeErrors != null and displayHomeErrors > 0) ? 'score-cell-filled' : ''}"></td>
+            <td class="score-summary-total" th:text="${displayHomeWalks != null ? displayHomeWalks : ''}" th:classappend="${(displayHomeWalks != null and displayHomeWalks > 0) ? 'score-cell-filled' : ''}"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="score-summary-pitchers">
+      <div class="score-pitcher-item">
+        <span class="score-pitcher-label score-pitcher-label-win">승</span>
+        <span class="score-pitcher-name" th:classappend="${winningPitcherTeamClass}" th:text="${game.winningPitcherName != null and !game.winningPitcherName.isEmpty() ? game.winningPitcherName : '-'}">-</span>
+      </div>
+      <div class="score-pitcher-item">
+        <span class="score-pitcher-label score-pitcher-label-lose">패</span>
+        <span class="score-pitcher-name" th:classappend="${losingPitcherTeamClass}" th:text="${game.losingPitcherName != null and !game.losingPitcherName.isEmpty() ? game.losingPitcherName : '-'}">-</span>
+      </div>
+      <div class="score-pitcher-item">
+        <span class="score-pitcher-label score-pitcher-label-save">세</span>
+        <span class="score-pitcher-name" th:classappend="${savePitcherTeamClass}" th:text="${game.displaySavePitcherName != null and !game.displaySavePitcherName.isEmpty() ? game.displaySavePitcherName : '-'}">-</span>
+      </div>
+    </div>
+  </div>
+</th:block>
+
+<th:block th:fragment="game-relay-tabs">
+  <!-- 탭: 주요 내용 / 중계 / 기록 -->
+  <div class="game-detail-tabs mb-2">
+    <button type="button" class="tab-btn active" data-tab="relay">주요 내용</button>
+    <button type="button" class="tab-btn" data-tab="records">중계</button>
+    <button type="button" class="tab-btn" data-tab="stats">기록</button>
+  </div>
+
+  <div id="tab-relay" class="tab-pane active">
+    <div id="highlight-content"></div>
+  </div>
+
+  <div id="tab-records" class="tab-pane" th:attr="data-game-id=${game.id}" data-selected-inning="all">
+    <div id="record-content">
+      <p class="text-muted">[중계] 탭을 클릭하면 타석·투구 기록을 불러옵니다.</p>
+    </div>
+  </div>
+
+  <div id="tab-stats" class="tab-pane" th:attr="data-game-id=${game.id}">
+    <div id="stats-content">
+      <p class="text-muted">[기록] 탭을 클릭하면 양팀 전력 비교와 경기 기록 요약을 불러옵니다.</p>
+    </div>
+  </div>
+
+  <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+      var gameId = /*[[${game.id}]]*/ 0;
+      var recordLoaded = false;
+      var highlightsLoaded = false;
+      var statsLoaded = false;
+
+      var tabBtns = document.querySelectorAll('.game-detail-tabs .tab-btn');
+      tabBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var tab = this.getAttribute('data-tab');
+          if (!tab) return;
+          tabBtns.forEach(function(b) { b.classList.remove('active'); });
+          document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+          this.classList.add('active');
+          var pane = document.getElementById('tab-' + tab);
+          if (pane) pane.classList.add('active');
+
+          if (tab === 'relay' && !highlightsLoaded) {
+            highlightsLoaded = true;
+            var hc = document.getElementById('highlight-content');
+            if (hc) {
+              hc.innerHTML = '<p class="text-muted">주요 내용 불러오는 중...</p>';
+              fetch('/games/' + gameId + '/highlights-fragment')
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                  var inner = document.createElement('div');
+                  inner.innerHTML = html;
+                  var fragmentContent = inner.querySelector('#highlights-fragment-content');
+                  hc.innerHTML = fragmentContent ? fragmentContent.innerHTML : html;
+                })
+                .catch(function() {
+                  hc.innerHTML = '<p class="text-danger">주요 내용을 불러오지 못했습니다.</p>';
+                });
+            }
+          }
+          if (tab === 'records') {
+            var rcEarly = document.getElementById('record-content');
+            var trEarly = document.getElementById('tab-records');
+            if (recordLoaded && rcEarly && rcEarly.querySelector('.play-by-play-list') && trEarly) {
+              applyRecordFilters(trEarly);
+            }
+            if (!recordLoaded) {
+            recordLoaded = true;
+            var rc = document.getElementById('record-content');
+            if (rc) {
+              rc.innerHTML = '<p class="text-muted">기록 불러오는 중...</p>';
+              fetch('/games/' + gameId + '/record-fragment')
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                  var inner = document.createElement('div');
+                  inner.innerHTML = html;
+                  var fragmentContent = inner.querySelector('#record-fragment-content');
+                  rc.innerHTML = fragmentContent ? fragmentContent.innerHTML : html;
+                  setTimeout(function applyInningTab() {
+                    var container = document.getElementById('tab-records');
+                    var inning = 'all';
+                    try {
+                      var stored = sessionStorage.getItem('openRecordTabAfterImport');
+                      if (stored) { inning = String(stored).trim(); sessionStorage.removeItem('openRecordTabAfterImport'); }
+                    } catch (e) {}
+                    if (!container) return;
+                    var btn = rc.querySelector('.inning-btn[data-inning="' + inning + '"]');
+                    if (btn) {
+                      container.querySelectorAll('.inning-btn[data-inning]').forEach(function(b) { b.classList.remove('active'); });
+                      btn.classList.add('active');
+                    }
+                    container.setAttribute('data-selected-inning', inning);
+                    applyRecordFilters(container);
+                    var first = rc.querySelector('.pa-block[data-inning="' + inning + '"]');
+                    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 0);
+                })
+                .catch(function() {
+                  rc.innerHTML = '<p class="text-danger">기록을 불러오지 못했습니다.</p>';
+                });
+            }
+            }
+          }
+          if (tab === 'stats' && !statsLoaded) {
+            statsLoaded = true;
+            var sc = document.getElementById('stats-content');
+            if (sc) {
+              sc.innerHTML = '<p class="text-muted">기록 요약 불러오는 중...</p>';
+              fetch('/games/' + gameId + '/stats-fragment')
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                  var inner = document.createElement('div');
+                  inner.innerHTML = html;
+                  var fragmentContent = inner.querySelector('#stats-fragment-content');
+                  sc.innerHTML = fragmentContent ? fragmentContent.innerHTML : html;
+                  initStatsViewToggle(sc);
+                })
+                .catch(function() {
+                  sc.innerHTML = '<p class="text-danger">기록 요약을 불러오지 못했습니다.</p>';
+                });
+            }
+          }
+        });
+      });
+
+      /* ◇ 교대 줄 오른쪽 '확정' 체크 → 파싱 병합 시 해당 반 잠금/해제 */
+      document.addEventListener('change', function(e) {
+        var cb = e.target.closest('.half-confirm-cb');
+        if (!cb) return;
+        var tabRecords = document.getElementById('tab-records');
+        if (!tabRecords || !tabRecords.contains(cb)) return;
+        var gameId = tabRecords.getAttribute('data-game-id');
+        if (!gameId) return;
+        var key = cb.getAttribute('data-half-key');
+        if (!key) return;
+        var url = '/games/' + gameId + (cb.checked ? '/record/confirm-halves' : '/record/unconfirm-halves');
+        cb.disabled = true;
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ halfKeys: [key] })
+        })
+          .then(function(r) {
+            return r.json().then(function(d) { return { ok: r.ok, data: d }; }).catch(function() { return { ok: false, data: {} }; });
+          })
+          .then(function(o) {
+            if (!o.ok || !o.data || !o.data.success) {
+              cb.checked = !cb.checked;
+              alert((o.data && o.data.error) ? o.data.error : '저장에 실패했습니다.');
+            }
+          })
+          .catch(function() {
+            cb.checked = !cb.checked;
+            alert('요청 오류');
+          })
+          .finally(function() { cb.disabled = false; });
+      });
+
+      function getRecordSelectedInning(container) {
+        if (!container) return 'all';
+        var a = container.getAttribute('data-selected-inning');
+        if (a != null && String(a).trim() !== '') return String(a).trim();
+        return 'all';
+      }
+
+      function applyRecordFilters(container) {
+        var inning = getRecordSelectedInning(container);
+        var recordContent = container.querySelector('#record-content');
+        var awayChecked = true;
+        var homeChecked = true;
+        if (recordContent) {
+          var awayInput = recordContent.querySelector('.record-team-checkbox[data-team="away"]');
+          var homeInput = recordContent.querySelector('.record-team-checkbox[data-team="home"]');
+          awayChecked = awayInput ? awayInput.checked : true;
+          homeChecked = homeInput ? homeInput.checked : true;
+        }
+        container.querySelectorAll('.pa-block').forEach(function(block) {
+          var di = block.getAttribute('data-inning');
+          var inningOk = (inning === 'all') ? true : (di != null && String(di).trim() === inning);
+          var team = block.getAttribute('data-team');
+          if (!team) {
+            if (block.classList.contains('pa-away')) team = 'away';
+            else if (block.classList.contains('pa-home')) team = 'home';
+          }
+          var teamOk = false;
+          /* 이닝 교대(◇ N회초 종료…): 팀 한쪽만 볼 때는 숨김 — 어웨이·홈 둘 다 체크일 때만 표시 */
+          if (block.classList.contains('pa-half-handoff')) {
+            teamOk = awayChecked && homeChecked;
+          } else if (team === 'away') teamOk = awayChecked;
+          else if (team === 'home') teamOk = homeChecked;
+          else teamOk = awayChecked || homeChecked;
+          /* ◇ 줄은 display:grid!important라 인라인 display:none이 먹지 않음 → 클래스로 숨김 */
+          if (inningOk && teamOk) {
+            block.classList.remove('pa-record-filter-hidden');
+            block.style.removeProperty('display');
+          } else {
+            block.classList.add('pa-record-filter-hidden');
+          }
+        });
+      }
+
+      function initStatsViewToggle(container) {
+        if (!container) return;
+        var toggles = container.querySelectorAll('.stats-view-toggle-single');
+        if (!toggles || toggles.length === 0) return;
+        toggles.forEach(function(toggle) {
+          toggle.addEventListener('click', function() {
+            var current = toggle.getAttribute('data-view') || 'summary';
+            var next = current === 'summary' ? 'board' : 'summary';
+            toggle.setAttribute('data-view', next);
+            toggle.textContent = next === 'summary' ? '타석기록판' : '기록요약';
+
+            var teamBlock = toggle.closest('.stats-detail-team-block');
+            if (!teamBlock) return;
+            teamBlock.querySelectorAll('.stats-batter-view-summary').forEach(function(el) {
+              el.style.display = (next === 'summary') ? '' : 'none';
+            });
+            teamBlock.querySelectorAll('.stats-batter-view-board').forEach(function(el) {
+              el.style.display = (next === 'board') ? '' : 'none';
+            });
+          });
+        });
+      }
+
+      document.getElementById('tab-records').addEventListener('click', function(e) {
+        var container = document.getElementById('tab-records');
+        var inningBtn = e.target.closest('.inning-btn');
+        if (inningBtn && inningBtn.hasAttribute('data-inning')) {
+          e.preventDefault();
+          container.querySelectorAll('.inning-btn[data-inning]').forEach(function(b) { b.classList.remove('active'); });
+          inningBtn.classList.add('active');
+          var innVal = inningBtn.getAttribute('data-inning');
+          container.setAttribute('data-selected-inning', innVal != null ? innVal : 'all');
+          applyRecordFilters(container);
+          var recordContent = document.getElementById('record-content');
+          if (recordContent) {
+            var firstVisible = null;
+            recordContent.querySelectorAll('.pa-block').forEach(function(block) {
+              if (!firstVisible && !block.classList.contains('pa-record-filter-hidden')) firstVisible = block;
+            });
+            if (firstVisible) {
+              firstVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }
+        }
+        var toggleBtn = e.target.closest('.toggle-pitches');
+        if (toggleBtn) {
+          e.preventDefault();
+          var id = toggleBtn.getAttribute('data-pa-id');
+          var wrap = document.querySelector('.pitches-wrap[data-pa-id="' + id + '"]');
+          if (!wrap) return;
+          var isHidden = wrap.style.display === 'none';
+          wrap.style.display = isHidden ? 'block' : 'none';
+          toggleBtn.textContent = isHidden ? '기록 접기' : '기록 펼치기';
+        }
+      });
+
+      document.getElementById('tab-records').addEventListener('change', function(e) {
+        var teamCheck = e.target.closest('.record-team-checkbox');
+        if (!teamCheck) return;
+        var container = document.getElementById('tab-records');
+        applyRecordFilters(container);
+      });
+
+      try {
+        if (sessionStorage.getItem('openRecordTabAfterImport')) {
+          var recordsTab = document.querySelector('.game-detail-tabs .tab-btn[data-tab="records"]');
+          if (recordsTab) recordsTab.click();
+        }
+      } catch (e) {}
+
+      // 기본 활성 탭(주요 내용)은 새로고침 직후에도 즉시 로드
+      if (!highlightsLoaded) {
+        highlightsLoaded = true;
+        var hc = document.getElementById('highlight-content');
+        if (hc) {
+          hc.innerHTML = '<p class="text-muted">주요 내용 불러오는 중...</p>';
+          fetch('/games/' + gameId + '/highlights-fragment')
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+              var inner = document.createElement('div');
+              inner.innerHTML = html;
+              var fragmentContent = inner.querySelector('#highlights-fragment-content');
+              hc.innerHTML = fragmentContent ? fragmentContent.innerHTML : html;
+            })
+            .catch(function() {
+              hc.innerHTML = '<p class="text-danger">주요 내용을 불러오지 못했습니다.</p>';
+            });
+        }
+      }
+    });
+  </script>
+</th:block>
+
+<th:block th:fragment="scoreboard-and-records">
+  <th:block th:replace="~{game/detail :: scoreboard-only}"></th:block>
+  <th:block th:replace="~{game/detail :: game-relay-tabs}"></th:block>
+</th:block>
+</html>
+

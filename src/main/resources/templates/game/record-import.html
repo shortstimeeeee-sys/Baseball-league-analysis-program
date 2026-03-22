@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko" th:replace="~{fragments/layout :: layout('경기 기록 가져오기', ~{::content})}">
+<th:block th:fragment="content">
+  <div class="page-header">
+    <h1 class="page-title">경기 기록 가져오기</h1>
+    <div class="d-flex gap-2">
+      <a th:href="@{/games/{id}(id=${game.id})}" class="btn btn-secondary">경기 상세로</a>
+      <form th:action="@{/games/{id}/finalize(id=${game.id})}" method="post">
+        <button type="submit" class="btn btn-primary">4단계 · 경기 완료 처리</button>
+      </form>
+    </div>
+  </div>
+  <p class="text-muted mb-2">스코어보드 중앙 표시: <strong th:text="${scoreboardSituationLabel != null ? scoreboardSituationLabel : (game.status != null ? game.status.displayName : '-')}">5회초</strong>. 아래에서 기록을 충분히 반영한 뒤 <strong>[경기 완료 처리]</strong>를 눌러 종료로 확정하세요.</p>
+  <div class="alert alert-info mb-3" style="font-size: 0.9rem;">
+    <strong>이닝 인식</strong> · 텍스트에 <code>1회초 팀명 공격</code>, <code>1회말 팀명 공격</code>, <code>2회초 팀명 공격</code>… 줄이 나오면, 그 다음 타석들이 해당 이닝으로 저장됩니다.
+  </div>
+  <div class="alert alert-light border mb-3">
+    <span class="text-muted small">맞는 반 이닝만 잠그려면 <strong>경기 상세 → [중계] 탭</strong>에서 <strong>◇ … 종료 → … 시작</strong> 줄 오른쪽 <strong>확정</strong>을 체크하세요. 체크한 반은 이후 가져오기로 덮어쓰이지 않습니다.</span>
+  </div>
+  <th:block th:if="${error}">
+    <div class="alert alert-danger" th:text="${error}"></div>
+  </th:block>
+  <div id="import-result" class="alert mb-3" style="display: none;" role="alert"></div>
+  <form id="record-import-form" th:action="@{/games/{id}/record/import(id=${game.id})}" method="post" class="card">
+    <div class="card-body">
+      <div class="form-group mb-3">
+        <label class="d-flex align-items-center gap-2">
+          <input type="checkbox" name="appendOnly" value="true">
+          <span><strong>이어서 추가</strong> · 체크 시 1회는 유지하고 2회 이후만 추가·갱신</span>
+        </label>
+        <p class="text-muted small mt-1 mb-0">1회부터 새로 넣으려면 체크를 끄고 가져오세요. (기본 꺼짐)</p>
+      </div>
+      <input type="hidden" name="format" value="text"/>
+      <div class="form-group">
+        <label for="payload">경기 기록 (중계 텍스트)</label>
+        <textarea id="payload" name="payload" class="form-control" rows="20" placeholder="1회초 LG 공격&#10;홍창기 선수 페이지&#10;홍창기 : 1루수 땅볼 아웃&#10;..."
+                  style="max-width:100%; font-family: monospace; font-size: 12px;"></textarea>
+      </div>
+      <button type="button" class="btn btn-primary" id="import-submit">가져오기 (페이지 이동 없이 파싱·반영)</button>
+    </div>
+  </form>
+  <script th:inline="javascript">
+    (function() {
+      var form = document.getElementById('record-import-form');
+      var resultEl = document.getElementById('import-result');
+      var submitBtn = document.getElementById('import-submit');
+      var gameId = /*[[${game.id}]]*/ 0;
+      var importUrl = /*[[@{/games/{id}/record/import(id=${game.id})}]]*/ '';
+      if (!form || !submitBtn) return;
+      submitBtn.addEventListener('click', function() {
+        var fd = new FormData(form);
+        submitBtn.disabled = true;
+        submitBtn.textContent = '처리 중…';
+        resultEl.style.display = 'none';
+        fetch(importUrl, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } })
+          .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }).catch(function() { return { ok: false, data: { error: '응답 형식 오류' } }; }); })
+          .then(function(o) {
+            resultEl.style.display = 'block';
+            resultEl.className = 'alert mb-3 ' + (o.ok ? 'alert-success' : 'alert-danger');
+            if (o.ok) {
+              var msg = '경기 기록이 반영되었습니다. 기록 탭으로 이동합니다…';
+              if (o.data && o.data.gameCompleted) {
+                msg += ' (텍스트에 경기 종료가 있어 완료 상태로 반영됨)';
+              }
+              resultEl.textContent = msg;
+              try {
+                var inning = (o.data && o.data.lastInning != null && o.data.lastInning !== undefined) ? String(o.data.lastInning) : '1';
+                sessionStorage.setItem('openRecordTabAfterImport', inning);
+              } catch (e) {}
+              setTimeout(function() { location.reload(); }, 800);
+              return;
+            }
+            resultEl.textContent = o.data.error || '오류가 발생했습니다.';
+          })
+          .catch(function() {
+            resultEl.style.display = 'block';
+            resultEl.className = 'alert alert-danger mb-3';
+            resultEl.textContent = '요청 중 오류가 발생했습니다.';
+          })
+          .finally(function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '가져오기 (페이지 이동 없이 파싱·반영)';
+          });
+      });
+      form.addEventListener('submit', function(e) { e.preventDefault(); });
+    })();
+  </script>
+
+  <!-- 파싱 구역 바로 아래 합쳐서 표시. 가져오기 성공 시 자동 새로고침되어 여기 내용이 갱신됨 -->
+  <h2 class="h5 mt-4 mb-1">스코어보드</h2>
+  <p class="text-muted small mb-2">가져오기 후 아래 스코어가 갱신됩니다. 타석·◇ 교대·확정 체크는 <strong>경기 상세</strong>의 <strong>[중계]</strong> 탭에서만 표시됩니다.</p>
+  <th:block th:replace="~{game/detail :: scoreboard-only}"></th:block>
+</th:block>
+</html>
